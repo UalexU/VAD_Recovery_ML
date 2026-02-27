@@ -6,13 +6,30 @@
 
 clc; close all;
 
+%% Setup Folders
+% Analyze locally by default.
+SHARED_DRIVE_PATH = ''; 
+
+if isempty(SHARED_DRIVE_PATH)
+    base_folder = fullfile('..', 'Data', 'Quick_Test');
+else
+    base_folder = fullfile(SHARED_DRIVE_PATH, 'Quick_Test');
+end
+
 %% Load Dataset
-csv_file = fullfile('Data', 'Quick_Test', 'QuickTest_Database.csv');
+csv_file = fullfile(base_folder, 'QuickTest_Database.csv');
+if ~isfile(csv_file)
+    error('Dataset not found at %s.', csv_file);
+end
 T = readtable(csv_file);
 
 target = T.Condition;
 X = [T.FFT_H1, T.FFT_H2, T.PumpFlow, T.dPumpFlow, T.MAP, T.SBP, T.DBP];
 feature_labels = {'FFT H1', 'FFT H2', 'PumpFlow', 'dPumpFlow', 'MAP', 'SBP', 'DBP'};
+
+% Local output folder for figures
+local_fig_folder = fullfile('..', 'Data', 'Quick_Test', 'Figures');
+if ~exist(local_fig_folder, 'dir'), mkdir(local_fig_folder); end
 
 %% ============================================================
 %   Feature Importance via Decision Tree
@@ -27,14 +44,11 @@ ylabel('Importance Score');
 title('Feature Importance (Decision Tree)');
 grid on;
 
-fig_folder = fullfile('Data', 'Quick_Test', 'Figures');
-if ~exist(fig_folder, 'dir'), mkdir(fig_folder); end
-saveas(gcf, fullfile(fig_folder, 'Feature_Importance.png'));
+saveas(gcf, fullfile(local_fig_folder, 'Feature_Importance.png'));
 
 %% ============================================================
 %   Leave-One-Feature-Out Analysis
 %   Train KNN with ALL features, then remove one at a time
-%   to see which feature causes the biggest accuracy drop.
 % ============================================================
 
 fprintf('\n--- Leave-One-Feature-Out Analysis ---\n');
@@ -71,5 +85,5 @@ ylabel('Accuracy Drop (%)');
 title('Accuracy Drop When Removing Each Feature');
 grid on;
 
-saveas(gcf, fullfile(fig_folder, 'Feature_Drop_Analysis.png'));
-fprintf('\nFigures saved to: %s\n', fig_folder);
+saveas(gcf, fullfile(local_fig_folder, 'Feature_Drop_Analysis.png'));
+fprintf('\nFigures saved locally to: %s\n', local_fig_folder);
