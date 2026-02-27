@@ -104,7 +104,17 @@ fprintf('Job list shuffled.\n');
 %                  OUTPUT SETUP
 % ============================================================
 
-db_folder  = fullfile('Data', 'ML_Database');
+% --- CHANGE THIS TO YOUR SHARED DRIVE PATH ---
+% Example: 'Z:\Lab_Thesis\Simulations' or '/Volumes/Shared/Sims'
+% If you leave it empty '', it will use the local Data folder.
+SHARED_DRIVE_PATH = ''; 
+
+if isempty(SHARED_DRIVE_PATH)
+    db_folder  = fullfile('Data', 'ML_Database');
+else
+    db_folder = SHARED_DRIVE_PATH;
+end
+
 sim_folder = fullfile(db_folder, 'simulations');
 if ~exist(sim_folder, 'dir'), mkdir(sim_folder); end
 
