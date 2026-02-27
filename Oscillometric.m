@@ -1,0 +1,136 @@
+function [SBP,DBP,MAP]=Oscillometric(P_of_t,threshold, doPlot)
+if nargin < 3 
+    doPlot = true; % default: plot everything
+end
+% Extract the cuff pressure from simulation
+N = length(P_of_t);
+Pa = P_of_t(:,2); % Arterial Pressure Psa
+Pcuff = P_of_t(:,3); % Cuff Pressure
+HR = 72; % Heart Rate in beats/min
+Ts = 0.002;  % step size in simulation
+Tc = 60/HR;  % Cardiac period in sec/beat
+D = fix(Tc/2/Ts); % Number of data point for a half heart period
+
+% Smooth the cuff pressure using a moving average filter
+Psm = zeros(N,1);
+for k = D+1:N-D,
+    Psm(k) = mean(Pcuff(k-D:k+D));
+end;
+
+% Truncate unnecessary data before cuff deflection and the last half of the
+% cardiac period at the end
+index = [ceil(11/Ts):N-D]; 
+Psm = Psm(index);
+Pcuff = Pcuff(index);
+Pfilter = Pcuff - Psm;
+t = [Ts:Ts:length(Psm)*Ts];
+
+% Detect the min & max cuff pressure from each heart beat using the
+% peakdet.m (Ref: http://billauer.co.il/peakdet.html)
+[maxPf, minPf] = peakdet(Pfilter, threshold);
+
+% Data plot of Fig.5(b) with the markers on the min & max in each beat
+if doPlot
+figure(1) 
+plot(t,Pfilter), grid, hold on
+xlabel('Time [sec]')
+ylabel('Filtered Oscillation Pressure [mmHg]')
+plot(t(maxPf(:,1)), maxPf(:,2), 'r*');
+plot(t(minPf(:,1)), minPf(:,2), 'g*');
+hold off
+
+% Data plot of Fig. 6(a) 
+figure(2)
+plot(Psm, Pfilter), grid
+xlabel('Smoothed Cuff Pressure [mmHg]')
+ylabel('Filtered Oscillation Pressure [mmHg]')
+set(gca,'xdir','reverse') % Reverse the x-axis
+end
+% Extract the envelope pressure and the diastolic cuff pressure 
+% corresponding to each heart beat
+M = min(length(minPf), length(maxPf));
+index = [1:M];
+PP = maxPf(index,2)-minPf(index,2); % Envelope pressure
+Pc = Pcuff(minPf(index,1));
+
+% Data plot of Fig. 6(b)
+if doPlot
+figure(3)
+plot(Pc, PP)
+grid
+xlabel('Cuff Pressure [mmHg]')
+ylabel('Envelope [mmHg]')
+set(gca,'xdir','reverse') % Reverse the x-axis 
+hold on
+end
+% Extract data for curve fitting in Domain 1
+[dYmax, Imax]=max(diff(PP));
+    % Instantaneous diastolic cuff pressure in Domain 1 
+    Pd1 = Pc(1:Imax);
+    % Pulse pressure in Domain 1
+    DP1 = PP(1:Imax);
+[dYmin, Imin]=min(diff(PP));
+    % Instantaneous diastolic cuff pressure in Domain 3 
+    Pd3 = Pc(Imin:M);
+    % Pulse pressure in Domain 3
+    DP3 = PP(Imin:M);
+
+% Least squares fit to estimate the coefficients a and b
+% Domain 1
+K1 = polyfit(Pd1, log(DP1), 1);
+DP1_hat = exp(K1(2)*ones(size(Pd1)) + K1(1)*Pd1);
+E1 = DP1 - DP1_hat;
+EI1 = sqrt((E1'*E1)/(DP1'*DP1))*100; %Estimation error index in percentage
+
+if doPlot
+% Show markers of the estimated pressure envelope in Domain 1
+plot(Pd1, DP1_hat, 'k+'), hold on
+end
+
+% Domain 3
+K3 = polyfit(Pd3, log(DP3), 1);
+DP3_hat = exp(K3(2)*ones(size(Pd3)) + K3(1)*Pd3);
+E3 = DP3 - DP3_hat;
+EI3 = sqrt((E3'*E3)/(DP3'*DP3))*100; %Estimation error index in percentage
+
+if doPlot
+% Show markers of the estimated pressure envelope in Domain 3
+plot(Pd3, DP3_hat, 'rx'), hold off
+end
+% Systolic and Diastolic Pressure Estimation
+% Assign coefficients
+a = -K1(1);  b = K3(1);
+Va0 = 0.3; V0 = 300; Patm = 760;
+
+% Define the ranges of systolic (40 to 160 mmHg) and diastolic
+% (40 to 160 mmHg) pressure for estimation
+SP = [40:160]; DP = [40:160];
+L = length(Pc);
+for m=1:length(SP),
+    SBP = SP(m);
+    for n=1:length(DP),
+        DBP = DP(n);
+        if DBP < SBP, % In reality, SBP > DBP
+            for k=1:L,
+                X = Va0*(Pc(k)+Patm)/V0;
+                if Pc(k) >= SBP,
+                    PP_hat(k,1)=X*(exp(a*(SBP-Pc(k)))-exp(a*(DBP-Pc(k))));
+                elseif Pc(k)<SBP && Pc(k)>=DBP,
+                    PP_hat(k,1)=X*(1+a/b*(1-exp(-b*(SBP-Pc(k))))-exp(a*(DBP-Pc(k))));
+                else
+                    PP_hat(k,1)=X*a/b*(exp(-b*(DBP-Pc(k)))-exp(-b*(SBP-Pc(k))));
+                end;
+            end;
+            PP_hat_compressed=PP_hat(1:length(PP));
+            ERR = PP/max(PP) - PP_hat_compressed/max(PP_hat_compressed);
+            SS(m,n) = ERR' * ERR;
+        else % Unrealistic conditions, assign high errors
+            SS(m,n) = 1000;
+        end;
+    end;
+end;
+[Y, I]=min(min(SS)); [X, J]=min(SS(:,I));
+SBP = min(SP)+J-1;
+DBP = min(DP)+I-1;
+MAP = 2/3*SBP + DBP/3;
+end

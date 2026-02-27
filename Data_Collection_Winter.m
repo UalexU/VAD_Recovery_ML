@@ -1,0 +1,171 @@
+%% ============================================================
+%   MAIN SWEEP SCRIPT (Helper functions in src/modules)
+% ============================================================
+
+clc; clear; close all;
+
+%% Add helper function folder
+addpath(genpath('modules'));
+
+%% Global model path
+global BASENAME
+BASENAME = 'modelv3/Interface/';
+
+%% Load constants
+HeartConstantsv3;
+ %% Sweep parameters
+pump_speed_sweep = 8:0.1:8.6;
+strength_levels  = [1, 0.3]; 
+
+%% Fixed parameters
+pump_on = 1;
+threshold = 0.25;
+Rep_Gain_Factor = 1;
+Rsp_Gain_Factor = 1;
+Vusv_Gain_Factor = 1;
+Vuev_Gain_Factor = 1;
+
+%% Scenario label
+scenario = 'PumpOn_RPM_Winter';
+
+%% Reset cuff pressure master file
+cuffFile = sprintf('Data/CuffPressure_Master_%s.csv', scenario);
+if isfile(cuffFile)
+    delete(cuffFile);
+end
+
+%% ============================================================
+%                 MAIN SWEEP OVER STRENGTH LEVELS
+% ============================================================
+
+% Initialize matrices for 3D plotting
+num_s = length(strength_levels);
+num_k = length(pump_speed_sweep);
+
+MAP_Matrix           = zeros(num_s, num_k);
+CO_Matrix            = zeros(num_s, num_k);
+DeltaP_Matrix        = zeros(num_s, num_k);
+PumpFlow_Matrix      = zeros(num_s, num_k);
+dPumpFlow_Matrix     = zeros(num_s, num_k);
+DeltaPumpP_Matrix    = zeros(num_s, num_k);
+PumpP_Mean_Matrix    = zeros(num_s, num_k);
+FirstFFT_Matrix      = zeros(num_s, num_k);
+SecondFFT_Matrix     = zeros(num_s, num_k);
+SV_Matrix            = zeros(num_s, num_k);
+PO_Matrix            = zeros(num_s, num_k);
+PumpFlow_Max_Matrix  = zeros(num_s, num_k);
+dPumpFlow_Max_Matrix = zeros(num_s, num_k);
+
+for s = 1:num_s
+
+    strength_factor = strength_levels(s);
+    n = num_k;
+
+    % Preallocate results
+    results = initResultStruct(n, strength_factor);
+
+    %% ============================================================
+    %                     SWEEP LOOP
+    % ============================================================
+    for k = 1:n
+
+        pump_speed = pump_speed_sweep(k);
+
+        % Run simulation
+        sim('modelv3_1');
+        
+        % Extract simulation outputs
+        simData = extractSimData(CO_sim, HR_sim, SV_sim, PO_sim, Psa_mean_from_simulink);
+
+        % Extract oscillometric + FFT + peak info (pass HR for cycle-accurate averaging)
+        oscData = extractOscillometric(P, P_all, Psa_log, Prv_log, Plv_log, Qpump, dQpump, simData.HR);
+
+        % Store results
+        results = storeResults(results, simData, oscData, pump_speed, k);
+
+        % Save cuff pressure independently
+        condition = getConditionLabel(strength_factor);
+        saveCuffPressure(Filtered_Cuff, k, strength_factor, pump_speed, condition, 'csv', scenario);
+
+    end
+
+    %% ============================================================
+    %               CLASSIFY MAP + SAVE RESULTS
+    % ============================================================
+    results.MAP_classification = classifyMAP(results.Psa_mean);
+
+    % Accumulate data for plotting
+    MAP_Matrix(s, :)        = results.Psa_mean;
+    CO_Matrix(s, :)         = results.CO;
+    DeltaP_Matrix(s, :)     = results.DeltaP;
+    PumpFlow_Matrix(s, :)   = results.PumpFlow_mean;
+    dPumpFlow_Matrix(s, :)  = results.dPumpFlow;
+    DeltaPumpP_Matrix(s, :) = results.DeltaPumpPressure;
+    PumpP_Mean_Matrix(s, :) = results.PumpPressure_mean;
+    FirstFFT_Matrix(s, :)   = results.FirstFFT;
+    SecondFFT_Matrix(s, :)  = results.SecondFFT;
+    SV_Matrix(s, :)         = results.SV;
+    PO_Matrix(s, :)         = results.PO;
+    PumpFlow_Max_Matrix(s, :)  = results.PumpFlow_mean_max;
+    dPumpFlow_Max_Matrix(s, :) = results.dPumpFlow_mean_max;
+
+    saveSweepResults(results, strength_factor, pump_speed, scenario);
+
+end
+
+%% ============================================================
+%                   VISUALIZATION & SAVING
+% ============================================================
+% Organized folder structure: Data/Figures/RPM/Scenario/Type/
+base_folder = fullfile('Data', 'Figures', 'RPM', scenario);
+
+folder_3D      = fullfile(base_folder, '3D_Bar_Charts');
+folder_Heatmap = fullfile(base_folder, 'Heatmaps');
+folder_Lines   = fullfile(base_folder, 'Comparison_Lines');
+
+% Ensure folders exist
+if ~exist(folder_3D, 'dir'),      mkdir(folder_3D);      end
+if ~exist(folder_Heatmap, 'dir'), mkdir(folder_Heatmap); end
+if ~exist(folder_Lines, 'dir'),   mkdir(folder_Lines);   end
+
+fprintf('Generating organized plots in: %s\n', base_folder);
+
+% --- 3D Bar Charts (Landscape views) ---
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, MAP_Matrix,           'Mean Arterial Pressure (mmHg)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, CO_Matrix,            'Cardiac Output (L/min)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, DeltaP_Matrix,        'Psa Pulse Pressure (DeltaP) (mmHg)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, PumpFlow_Matrix,      'Mean Pump Flow (L/min)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, PumpFlow_Max_Matrix,  'Peak Pump Flow (L/min)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, dPumpFlow_Matrix,     'Mean Flow Pulsatility (dQF)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, dPumpFlow_Max_Matrix, 'Peak Flow Pulsatility (dQF)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, DeltaPumpP_Matrix,    'Delta Pump Pressure (mmHg)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, PumpP_Mean_Matrix,    'Mean Pump Pressure (mmHg)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, FirstFFT_Matrix,      'Cuff pressure 1st Harmonic FFT', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, SecondFFT_Matrix,     'Cuff pressure 2nd Harmonic FFT', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, SV_Matrix,            'Stroke Volume (L)', folder_3D);
+% plot3DBarFeatures(strength_levels, pump_speed_sweep, PO_Matrix,            'Pump Output (L/min)', folder_3D);
+
+% % --- 2D Heatmaps (Top-down perspectives) ---
+% plotHeatMap(strength_levels, pump_speed_sweep, MAP_Matrix,           'Mean Arterial Pressure (mmHg)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, CO_Matrix,            'Cardiac Output (L/min)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, DeltaP_Matrix,        'Psa Pulse Pressure (DeltaP)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, PumpFlow_Matrix,      'Mean Pump Flow (L/min)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, PumpFlow_Max_Matrix,  'Peak Pump Flow (L/min)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, dPumpFlow_Matrix,     'Mean Flow Pulsatility (dQF)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, dPumpFlow_Max_Matrix, 'Peak Flow Pulsatility (dQF)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, DeltaPumpP_Matrix,    'Delta Pump Pressure (mmHg)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, PumpP_Mean_Matrix,    'Mean Pump Pressure (mmHg)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, FirstFFT_Matrix,      'Cuff pressure 1st Harmonic FFT', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, SecondFFT_Matrix,     'Cuff pressure 2nd Harmonic FFT', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, SV_Matrix,            'Stroke Volume (L)', folder_Heatmap);
+% plotHeatMap(strength_levels, pump_speed_sweep, PO_Matrix,            'Pump Output (L/min)', folder_Heatmap);
+% 
+% % --- 2D Multi-Line Plots (Scientific comparisons) ---
+% plotComparisonLines(pump_speed_sweep, MAP_Matrix,           'Mean Arterial Pressure (mmHg)', folder_Lines);
+% plotComparisonLines(pump_speed_sweep, CO_Matrix,            'Cardiac Output (L/min)', folder_Lines);
+% plotComparisonLines(pump_speed_sweep, PumpFlow_Matrix,      'Mean Pump Flow (L/min)', folder_Lines);
+% plotComparisonLines(pump_speed_sweep, dPumpFlow_Matrix,     'Mean Flow Pulsatility (dQF)', folder_Lines);
+% plotComparisonLines(pump_speed_sweep, PumpFlow_Max_Matrix,  'Peak Pump Flow (L/min)', folder_Lines);
+% plotComparisonLines(pump_speed_sweep, dPumpFlow_Max_Matrix, 'Peak Flow Pulsatility (dQF)', folder_Lines);
+
+fprintf('Sweep complete for scenario: %s\n', scenario);
