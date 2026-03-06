@@ -8,7 +8,7 @@ clc; close all;
 
 %% Setup Folders
 % --- CHANGE THIS TO THE SAME SHARED DRIVE PATH ---
-SHARED_DRIVE_PATH = ''; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder  = fullfile('Data', 'ML_Database');
