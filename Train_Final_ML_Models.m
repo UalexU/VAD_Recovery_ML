@@ -7,9 +7,17 @@
 clc; clear; close all;
 
 %% 1. Load Compiled Database
-db_file = fullfile('Data', 'ML_Database', 'ML_Master_Database.csv');
+% --- CHANGE THIS TO YOUR SHARED DRIVE PATH ---
+SHARED_DRIVE_PATH = ''; 
+
+if isempty(SHARED_DRIVE_PATH)
+    db_file = fullfile('Data', 'ML_Database', 'ML_Master_Database.csv');
+else
+    db_file = fullfile(SHARED_DRIVE_PATH, 'ML_Master_Database.csv');
+end
+
 if ~isfile(db_file)
-    error('Master Database not found. Run Compile_Master_Database.m first.');
+    error('Master Database not found at %s. Run Compile_Master_Database.m first.', db_file);
 end
 
 T = readtable(db_file);
@@ -95,7 +103,15 @@ ylabel('Importance Score');
 grid on;
 
 %% 9. Save Final Product
-results_folder = fullfile('Data', 'Final_Results');
+% --- CHANGE THIS TO YOUR SHARED DRIVE PATH ---
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data'; 
+
+if isempty(SHARED_DRIVE_PATH)
+    results_folder = fullfile('Data', 'Final_Results');
+else
+    results_folder = fullfile(SHARED_DRIVE_PATH, 'Final_Results');
+end
+
 if ~exist(results_folder, 'dir'), mkdir(results_folder); end
 
 save(fullfile(results_folder, 'Final_Heart_Models.mat'), ...
