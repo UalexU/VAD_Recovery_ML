@@ -117,7 +117,8 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-sim_folder = fullfile(db_folder, 'simulations');
+% sim_folder = fullfile(db_folder, 'simulations');
+sim_folder = SHARED_DRIVE_PATH;
 if ~exist(sim_folder, 'dir'), mkdir(sim_folder); end
 
 %% Fixed parameters
