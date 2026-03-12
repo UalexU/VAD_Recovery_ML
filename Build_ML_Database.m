@@ -47,10 +47,10 @@ HeartConstantsv3;
 % ============================================================
 
 % Emax: 25% tolerance zones around clinical operating points
-%   Failing  (0.18): distance to Recovery = 0.12 -> 25% = 0.03 -> [0.15, 0.21]
-%   Recovery (0.30): distance to Failing  = 0.12 -> 25% = 0.03 distance to Normal = 0.70 -> 25% = 0.175 -> [0.27, 0.475]
-%   Normal   (1.00): distance to Recovery = 0.70 -> 25% = 0.175 -> [0.825, 1]
-emax_sweep = [0.15:0.02:0.21, 0.27:0.02:0.47, 0.825:0.05:1];
+%   Failing  (0.18): distance to Recovery = 0.12 -> 30% = 0.03 -> [0.15, 0.21]
+%   Recovery (0.30): distance to Failing  = 0.12 -> 30% = 0.03 distance to Normal = 0.70 -> 25% = 0.175 -> [0.27, 0.475]
+%   Normal   (1.00): distance to Recovery = 0.70 -> 30% = 0.175 -> [0.825, 1]
+emax_sweep = [0.144:0.025:0.216, 0.264:0.025:0.51, 0.790:0.025:1.210];
 
 % RPM: 8k to 10k (Notes: 100 steps -> 8:0.02:10 for 1D sweep)
 % For 4D grid we use a smaller step size to keep total manageable
@@ -107,7 +107,7 @@ fprintf('Job list shuffled.\n');
 % --- CHANGE THIS TO YOUR SHARED DRIVE PATH ---
 % Example: 'Z:\Lab_Thesis\Simulations' or '/Volumes/Shared/Sims'
 % If you leave it empty '', it will use the local Data folder.
-SHARED_DRIVE_PATH = ''; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_30%'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder  = fullfile('Data', 'ML_Database');
