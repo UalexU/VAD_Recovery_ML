@@ -109,7 +109,7 @@ fprintf('Job list shuffled.\n');
 % Example: 'Z:\Lab_Thesis\Simulations' or '/Volumes/Shared/Sims'
 % If you leave it empty '', it will use the local Data folder.
 
-SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_30%'; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_30'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder  = fullfile('Data', 'ML_Database');
