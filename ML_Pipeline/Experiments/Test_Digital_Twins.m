@@ -7,7 +7,8 @@
 clc; close all;
 
 %% Add helper function folder
-addpath(genpath('../modules'));
+addpath('../..');
+addpath(genpath('../../modules'));
 
 %% Global model path
 global BASENAME
@@ -21,7 +22,7 @@ HeartConstantsv3;
 % For this script, we will TRAIN a model on the fly using the Master DB
 % if available, otherwise we will mock it for demonstration.
 
-master_db_file = fullfile('Data', 'ML_Database', 'ML_Master_Database.csv');
+master_db_file = fullfile('../..', 'Data', 'ML_Database', 'ML_Master_Database.csv');
 if isfile(master_db_file)
     fprintf('Loading Master Database for Training...\n');
     T_train = readtable(master_db_file);
@@ -162,6 +163,6 @@ confusionchart(res_table.TrueClass, res_table.PredictedClass, ...
 title(sprintf('Digital Twin Test (N=%d, Acc=%.1f%%)', height(res_table), accuracy));
 
 % Save Results
-output_file = fullfile('Data', 'ML_Experiments', 'Digital_Twin_Results.csv');
+output_file = fullfile('../..', 'Data', 'ML_Experiments', 'Digital_Twin_Results.csv');
 writetable(res_table, output_file);
 fprintf('Detailed results saved to: %s\n', output_file);

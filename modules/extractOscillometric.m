@@ -19,6 +19,8 @@ Pcuff   = Pressure(:,3);
 
 O.Psa = Psa_log;
 O.Plv = Plv_log;
+% I need to introduce a % error into P so I have some sensor noise that can
+% back propagate
 [O.SBP, O.DBP, O.MAP] = Oscillometric(P, 0.02, false);
 O.DeltaPsa = O.SBP - O.DBP;
 
@@ -27,12 +29,14 @@ O.DeltaPlv = O.Plv_max - O.Plv_min;
 % --- Pump Flow Analysis (trimmed to last N complete cycles) ---
 num_cycles = 5;
 Q_full  = Qpump(:, 2);
-dQ_full = dQpump(:, 2);
+% dQ_full = dQpump(:, 2); % ORIGINAL SIGNAL FROM SIMULINK (Unused now)
+
 % I need to do the delta max - min. 
 N_Q = length(Q_full);
+Ts_Q = Qpump(2,1) - Qpump(1,1); % Time step from column 1
+
 if nargin >= 8 && ~isempty(HR) && HR > 0
     T_beat = 60 / HR;
-    Ts_Q = Qpump(2,1) - Qpump(1,1); % Time step from column 1
     samples_Q = round(T_beat / Ts_Q) * num_cycles; % number of samples in the last N complete cycles 
     if samples_Q < N_Q
         q_start = N_Q - samples_Q + 1; % start index of the last N complete cycles
@@ -44,10 +48,32 @@ else
 end
 
 Q_trim  = Q_full(q_start:end);
-dQ_trim = dQ_full(q_start:end);
+
+% --- Calculate dQ/dt numerically from Q_trim ---
+% dQ/dt = (Q(k) - Q(k-1)) / Ts
+dQ_numeric = [0; diff(Q_trim)] ./ Ts_Q;
+
+% --- Apply 3rd Order Butterworth Low-Pass Filter (20Hz) ---
+fc = 20; % Cut-off frequency (Hz)
+fs = 1 / Ts_Q; % Sampling frequency (Hz)
+[b, a] = butter(3, fc / (fs/2), 'low'); % Normalized frequency
+
+% Use filtfilt for zero-phase distortion
+dQ_filtered = filtfilt(b, a, dQ_numeric);
+
+% Use this new filtered signal for pulsatility analysis
+dQ_trim = dQ_filtered;
+
 
 % O.Qpump = Q_full;
 % O.Qpump_mean = mean(Q_trim); % Cycle-accurate mean
+
+% I need to introduce a % error into Qpump so I have some sensor noise that can
+% back propagate
+
+% For dQpump we need to add the noise into the Qpump and then pass it on a
+% the dQdt. This data will need to be fed ton a low pass filter max 3er
+% order, and 20Hz cut. prof. yu mentioned to try filtfilt? 
 
 % Find peaks of Qpump and average them for mean_max
 [maxtab_Q, mintab_Q] = peakdet(Q_trim, 0.5);
@@ -62,6 +88,7 @@ end
 % O.dQpump_mean = mean(dQ_trim); % Cycle-accurate mean
 
 % Find peaks of dQpump and average them for mean_max
+% Increased threshold slightly as derivative noise might be higher
 [maxtab_dQ, mintab_dQ] = peakdet(dQ_trim, 1.0);
 if ~isempty(maxtab_dQ) && ~isempty(mintab_dQ)
     O.dQpump = mean(maxtab_dQ(:, 2)) - mean(mintab_dQ(:, 2));

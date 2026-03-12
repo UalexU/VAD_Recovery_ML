@@ -13,7 +13,7 @@ SHARED_DRIVE_PATH = '';
 
 if isempty(SHARED_DRIVE_PATH)
     % Default: Look in the local Data folder
-    base_folder = fullfile('..', 'Data', 'Quick_Test');
+    base_folder = fullfile('../..', 'Data', 'Quick_Test');
 else
     % Alternative: Pull the CSV directly from the shared drive
     base_folder = fullfile(SHARED_DRIVE_PATH, 'Quick_Test');
@@ -90,7 +90,7 @@ fprintf('=============================\n');
 % ============================================================
 
 % Output for local results
-local_output = fullfile('..', 'Data', 'Quick_Test', 'Figures');
+local_output = fullfile('../..', 'Data', 'Quick_Test', 'Figures');
 if ~exist(local_output, 'dir'), mkdir(local_output); end
 
 % --- Figure 1: Confusion Matrices ---
@@ -112,7 +112,7 @@ sgtitle('Feature Separability - Quick Test');
 saveas(2, fullfile(local_output, 'Feature_Space.png'));
 
 % --- Save Models Locally ---
-model_file = fullfile('..', 'Data', 'Quick_Test', 'Trained_ML_Models.mat');
+model_file = fullfile('../..', 'Data', 'Quick_Test', 'Trained_ML_Models.mat');
 save(model_file, 'mdl_tree', 'mdl_knn', 'mdl_nb', 'feature_labels');
 
 fprintf('\nFigures and models saved locally to: %s\n', fullfile('Data', 'Quick_Test'));

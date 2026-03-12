@@ -8,7 +8,7 @@ clc; close all;
 
 %% Load Dataset
 experiment_name = 'Exp1_Preload_Separability';
-dataset_file = fullfile('Data', 'ML_Experiments', experiment_name, 'dataset.csv');
+dataset_file = fullfile('../..', 'Data', 'ML_Experiments', experiment_name, 'dataset.csv');
 
 if ~isfile(dataset_file)
     error('Dataset not found. Run Generate_Focused_Dataset.m first.');

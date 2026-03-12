@@ -7,7 +7,8 @@
 clc; close all;
 
 %% Add helper function folder
-addpath(genpath('modules'));
+addpath('..');
+addpath(genpath('../modules'));
 
 %% Global model path
 global BASENAME
@@ -38,7 +39,7 @@ end
 %                  REGENERATE JOB LIST
 % ============================================================
 % We must regenerate the exact same list to know what's missing.
-emax_sweep = [0.15:0.02:0.21, 0.27:0.02:0.47, 0.825:0.05:1];
+emax_sweep = [0.14:0.025:0.22, 0.26:0.025:0.52, 0.80:0.025:1.20];
 rpm_sweep       = 8:0.2:10;
 afterload_sweep = [0.05, 0.5:0.5:5.0];
 preload_sweep   = 0.1:0.2:1.9;
@@ -130,7 +131,11 @@ for k = 1:num_missing
             result.Features.FFT_H1 = oscData.H1; result.Features.FFT_H2 = oscData.H2;
             result.Features.PumpFlow = oscData.Qpump; result.Features.dPumpFlow = oscData.dQpump;
             result.Features.MAP = oscData.MAP; result.Features.SBP = oscData.SBP; result.Features.DBP = oscData.DBP;
-            result.Signals.Psa = Psa_log; result.Signals.Qpump = Qpump;
+            % Raw signals for post-processing
+            result.Signals.P     = P;
+            result.Signals.P_all = P_all;
+            result.Signals.Qpump = Qpump;
+            result.Signals.Psa   = Psa_log;
             
             save(filename, '-struct', 'result');
             fprintf('FIXED! (%.1fs)\n', sim_time);

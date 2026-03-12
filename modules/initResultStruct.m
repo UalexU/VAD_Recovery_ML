@@ -17,10 +17,10 @@ R.Plv_min   = zeros(n,1);
 R.DeltaPlv  = zeros(n,1);
 
 R.DeltaP  = zeros(n,1);
-R.PumpFlow_mean  = zeros(n,1);
-R.PumpFlow_mean_max = zeros(n,1);
-R.dPumpFlow  = zeros(n,1);
-R.dPumpFlow_mean_max = zeros(n,1);
+
+% Updated Pump Features
+R.PumpFlow = zeros(n,1);      % Pulsatility (max-min)
+R.dPumpFlow = zeros(n,1);     % Derivative pulsatility (max-min)
 R.DeltaPumpPressure = zeros(n,1);
 R.PumpPressure_mean  = zeros(n,1);
 

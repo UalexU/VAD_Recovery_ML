@@ -7,7 +7,8 @@
 clc; close all;
 
 %% Add helper function folder
-addpath(genpath('../modules'));
+addpath('../..');
+addpath(genpath('../../modules'));
 
 %% Global model path
 global BASENAME
@@ -42,7 +43,7 @@ Vusv_Gain_Factor = 1;
 Vuev_Gain_Factor = 1;
 
 %% Output Setup
-output_folder = fullfile('Data', 'ML_Experiments', experiment_name);
+output_folder = fullfile('../..', 'Data', 'ML_Experiments', experiment_name);
 if ~exist(output_folder, 'dir'), mkdir(output_folder); end
 csv_file = fullfile(output_folder, 'dataset.csv');
 

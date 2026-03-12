@@ -11,7 +11,7 @@ clc; close all;
 SHARED_DRIVE_PATH = ''; 
 
 if isempty(SHARED_DRIVE_PATH)
-    base_folder = fullfile('..', 'Data', 'Quick_Test');
+    base_folder = fullfile('../..', 'Data', 'Quick_Test');
 else
     base_folder = fullfile(SHARED_DRIVE_PATH, 'Quick_Test');
 end
@@ -28,7 +28,7 @@ X = [T.FFT_H1, T.FFT_H2, T.PumpFlow, T.dPumpFlow, T.MAP, T.SBP, T.DBP];
 feature_labels = {'FFT H1', 'FFT H2', 'PumpFlow', 'dPumpFlow', 'MAP', 'SBP', 'DBP'};
 
 % Local output folder for figures
-local_fig_folder = fullfile('..', 'Data', 'Quick_Test', 'Figures');
+local_fig_folder = fullfile('../..', 'Data', 'Quick_Test', 'Figures');
 if ~exist(local_fig_folder, 'dir'), mkdir(local_fig_folder); end
 
 %% ============================================================

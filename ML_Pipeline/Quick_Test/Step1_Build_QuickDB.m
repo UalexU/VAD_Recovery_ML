@@ -9,7 +9,8 @@
 clc; close all;
 
 %% Setup
-addpath(genpath('../modules'));
+addpath('../..'); % For model and constants
+addpath(genpath('../../modules'));
 
 global BASENAME
 BASENAME = 'modelv3/Interface/';
@@ -25,7 +26,7 @@ HeartConstantsv3;
 SHARED_DRIVE_PATH = ''; 
 
 if isempty(SHARED_DRIVE_PATH)
-    base_folder = fullfile('..', 'Data', 'Quick_Test');
+    base_folder = fullfile('../..', 'Data', 'Quick_Test');
 else
     base_folder = fullfile(SHARED_DRIVE_PATH, 'Quick_Test');
 end
@@ -126,7 +127,13 @@ for i = 1:total_jobs
     result.Features.SBP       = oscData.SBP;
     result.Features.DBP       = oscData.DBP;
 
-    % --- 5. Save Result (Makes it visible to other PCs) ---
+    % --- 5. Raw signals for post-processing ---
+    result.Signals.P     = P;
+    result.Signals.P_all = P_all;
+    result.Signals.Qpump = Qpump;
+    result.Signals.Psa   = Psa_log;
+
+    % --- 6. Save Result (Makes it visible to other PCs) ---
     save(filename, '-struct', 'result');
     
     fprintf('Done (%.1fs)\n', sim_time);
