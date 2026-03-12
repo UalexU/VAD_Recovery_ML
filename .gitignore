@@ -1,0 +1,28 @@
+# MATLAB & Simulink
+*.asv
+*.asv~
+*.mat
+*.slxc
+slprj/
+*.mdl.bak
+*.mdl.err
+*.autosave
+*.mex*
+*.jln
+*.p
+
+# Simulink metadata and cache
+checksumofcache
+varinfo
+
+# Generated Data & Results
+Data/
+ML_Pipeline/Quick_Test/Data/
+ML_Pipeline/Experiments/Data/
+
+# IDE & OS
+.cursor/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
