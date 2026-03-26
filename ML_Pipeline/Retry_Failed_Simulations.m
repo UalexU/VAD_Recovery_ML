@@ -22,7 +22,7 @@ HeartConstantsv3;
 % ============================================================
 
 % Use the same path as Build_ML_Database.m
-SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data'; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_30'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder  = fullfile('Data', 'ML_Database');
@@ -30,7 +30,7 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-sim_folder = fullfile(db_folder, 'simulations');
+sim_folder = db_folder; 
 if ~exist(sim_folder, 'dir')
     error('Simulation folder not found at: %s', sim_folder);
 end

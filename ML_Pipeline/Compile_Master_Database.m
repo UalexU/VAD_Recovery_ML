@@ -8,7 +8,7 @@ clc; close all;
 
 %% Setup Folders
 % --- CHANGE THIS TO THE SAME SHARED DRIVE PATH ---
-SHARED_DRIVE_PATH = ''; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder  = fullfile('Data', 'ML_Database');
@@ -16,7 +16,7 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-sim_folder = fullfile(db_folder, 'simulations');
+sim_folder = fullfile(db_folder, 'simulations_30');
 master_csv = fullfile(db_folder, 'ML_Master_Database.csv');
 master_mat = fullfile(db_folder, 'ML_Master_Database.mat');
 

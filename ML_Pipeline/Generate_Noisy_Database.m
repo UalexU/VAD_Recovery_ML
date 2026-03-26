@@ -13,7 +13,7 @@ addpath('..');
 addpath(genpath('../modules'));
 
 % --- SHARED DRIVE PATH (Same as Build_ML_Database) ---
-SHARED_DRIVE_PATH = ''; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder = fullfile('Data', 'ML_Database');
@@ -21,7 +21,7 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-sim_folder = fullfile(db_folder, 'simulations');
+sim_folder = fullfile(db_folder, 'simulations_30');
 output_csv = fullfile(db_folder, 'ML_Master_Database_Noisy10_OptionB.csv');
 
 if ~exist(sim_folder, 'dir')
