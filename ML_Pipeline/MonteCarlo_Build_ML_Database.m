@@ -1,7 +1,7 @@
 %% ============================================================
-%   BUILD ML DATABASE - Distributed 4D Sweep
-%   Generates a comprehensive simulation database for ML training.
-%   Designed for MULTI-COMPUTER execution.
+%   BUILD ML DATABASE - Grid OR uniform Monte Carlo on a 4D box
+%   Same outputs as Build_ML_Database.m; job IDs are MC_0000001 ... or grid-style.
+%   Designed for MULTI-COMPUTER execution (skip-if-exists).
 % ============================================================
 %
 %   Sweep Axes (4D):
@@ -37,40 +37,39 @@ BASENAME = 'modelv3/Interface/';
 HeartConstantsv3;
 
 %% ============================================================
-%              SWEEP AXIS DEFINITIONS (From Professor's Notes)
+%              GRID vs UNIFORM MONTE CARLO
 %
-%   For the full 4D grid, we use COARSER steps to keep the total
-%   simulation count manageable. The fine-step values from the notes
-%   (e.g., 100 RPM steps) are meant for individual 1D sweeps.
+%   GRID:  Full factorial over discrete levels (deterministic).
 %
-%   To increase resolution on any axis, just change the step size.
-%   Total sims = len(emax) * len(rpm) * len(afterload) * len(preload)
+%   UNIFORM MC:  N independent Uniform draws on a 4D box
+%          [emax_lo,emax_hi] x [rpm_lo,rpm_hi] x [al_lo,al_hi] x [pl_lo,pl_hi].
+%          Same resume/skip logic as the grid builder.
+%
+%   Caveat: A single box fills the *rectangle* between bounds; it does not
+%   reproduce the union of three disjoint Emax bands unless you use a
+%   mixture (sample zone, then uniform inside) or rejection sampling.
+%
+%   IDs: MC_0000001 ... MC_N avoids float collisions in filenames.
+%   Optional: Latin Hypercube (lhsdesign) for space-filling with fixed N.
 % ============================================================
 
-% Emax: 30% tolerance zones around clinical operating points
-%   Failing  (0.18): distance to Recovery = 0.12 -> 30% = 0.036 -> [0.144, 0.216]
-%   Recovery (0.30): distance to Failing  = 0.12 -> 30% = 0.036; to Normal = 0.70 -> 30% = 0.21 -> [0.264, 0.51]
-%   Normal   (1.00): distance to Recovery = 0.70 -> 30% = 0.21 -> [0.79, 1.21]
+USE_MONTE_CARLO = true;   % false = full factorial grid (emax_sweep, etc.)
+N_MC = 5000;              % Monte Carlo sample count (if USE_MONTE_CARLO)
 
-% Parameters
-N = 30000;    % Number of samples
-a = 10;       % Lower bound
-b = 50;       % Upper bound
+rng_seed = 42;            % set for reproducibility; or use rng('shuffle') below
+rng(rng_seed);
 
-% Generate samples
-r = a + (b-a) * rand(N, 1);
-
+% --- Grid axes (used when USE_MONTE_CARLO = false)
 emax_sweep = [0.14:0.025:0.22, 0.26:0.025:0.52, 0.80:0.025:1.20];
+rpm_sweep       = 8:0.2:10;
+afterload_sweep = [0.05, 0.5:0.5:5.0];
+preload_sweep   = 0.1:0.2:1.9;
 
-% RPM: 8k to 10k
-
-rpm_sweep = 8:0.2:10;                 
-% Afterload: Rsp Gain Factor 0.05 (5%) to 5.0 (500%)
-
-
-afterload_sweep = [0.05, 0.5:0.5:5.0]; 
-% Preload: Vusv Gain Factor 0.1 (10%) to 1.9 (190%)
-preload_sweep = 0.1:0.2:1.9;           
+% --- Monte Carlo bounds (edit to match your study; default = box covering grid ranges)
+emax_lo = 0.14;   emax_hi = 1.20;
+rpm_lo  = 8;      rpm_hi  = 10;
+al_lo   = 0.05;   al_hi   = 5.0;
+pl_lo   = 0.1;    pl_hi   = 1.9;
 
 %% ============================================================
 %                  GENERATE JOB LIST
@@ -78,23 +77,39 @@ preload_sweep = 0.1:0.2:1.9;
 
 jobs = struct('Emax', {}, 'RPM', {}, 'AL', {}, 'PL', {}, 'ID', {});
 
-fprintf('=== ML Database Builder (Distributed) ===\n');
-fprintf('Emax:      %d levels [%.2f to %.2f]\n', numel(emax_sweep), emax_sweep(1), emax_sweep(end));
-fprintf('RPM:       %d levels [%.1f to %.1f]\n', numel(rpm_sweep), rpm_sweep(1), rpm_sweep(end));
-fprintf('Afterload: %d levels [%.2f to %.2f] (Rsp Gain)\n', numel(afterload_sweep), afterload_sweep(1), afterload_sweep(end));
-fprintf('Preload:   %d levels [%.1f to %.1f] (Vusv Gain)\n', numel(preload_sweep), preload_sweep(1), preload_sweep(end));
+fprintf('=== ML Database Builder (Monte Carlo / Distributed) ===\n');
 
-for e = emax_sweep
-    for r = rpm_sweep
-        for a = afterload_sweep
-            for p = preload_sweep
-                id = sprintf('Emax%.2f_RPM%.1f_AL%.2f_PL%.1f', e, r, a, p);
-                new_job.Emax = e;
-                new_job.RPM  = r;
-                new_job.AL   = a;
-                new_job.PL   = p;
-                new_job.ID   = id;
-                jobs(end+1) = new_job; %#ok<*SAGROW>
+if USE_MONTE_CARLO 
+    fprintf('Mode: UNIFORM DISTRIBUTION MONTE CARLO (N = %d)\n', N_MC);
+    fprintf('  Emax [%.2f, %.2f], RPM [%.1f, %.1f], AL [%.2f, %.2f], PL [%.1f, %.1f]\n', ...
+        emax_lo, emax_hi, rpm_lo, rpm_hi, al_lo, al_hi, pl_lo, pl_hi);
+    u = rand(N_MC, 4); % random numbers between 0 and 1, 4 columns for emax, rpm, al, pl
+    for k = 1:N_MC
+        new_job.Emax = emax_lo + u(k,1) * (emax_hi - emax_lo);
+        new_job.RPM  = rpm_lo  + u(k,2) * (rpm_hi  - rpm_lo);
+        new_job.AL   = al_lo   + u(k,3) * (al_hi   - al_lo);
+        new_job.PL   = pl_lo   + u(k,4) * (pl_hi   - pl_lo);
+        new_job.ID   = sprintf('MC_%07d', k); % Max 7 index digits
+        jobs(end+1) = new_job; 
+    end
+else % normal grid mode without monte carlo sampling
+    fprintf('Mode: FULL FACTORIAL GRID\n');
+    fprintf('Emax:      %d levels [%.2f to %.2f]\n', numel(emax_sweep), emax_sweep(1), emax_sweep(end));
+    fprintf('RPM:       %d levels [%.1f to %.1f]\n', numel(rpm_sweep), rpm_sweep(1), rpm_sweep(end));
+    fprintf('Afterload: %d levels [%.2f to %.2f] (Rsp Gain)\n', numel(afterload_sweep), afterload_sweep(1), afterload_sweep(end));
+    fprintf('Preload:   %d levels [%.1f to %.1f] (Vusv Gain)\n', numel(preload_sweep), preload_sweep(1), preload_sweep(end));
+    for e = emax_sweep
+        for r = rpm_sweep
+            for alv = afterload_sweep
+                for p = preload_sweep
+                    id = sprintf('Emax%.2f_RPM%.1f_AL%.2f_PL%.1f', e, r, alv, p);
+                    new_job.Emax = e;
+                    new_job.RPM  = r;
+                    new_job.AL   = alv;
+                    new_job.PL   = p;
+                    new_job.ID   = id;
+                    jobs(end+1) = new_job; %#ok<*SAGROW>
+                end
             end
         end
     end
