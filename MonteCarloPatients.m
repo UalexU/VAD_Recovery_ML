@@ -1,6 +1,9 @@
 
 clc; clear; close all;
 
+% This generates patients all across the cardiac functions
+% However, for classification purposes defining a more clear 
+
 % Number of Monte Carlo samples 
 N_MC = 100;
 % Parameters within the boundary
@@ -11,6 +14,7 @@ pl_lo   = 0.1;    pl_hi   = 1.9;
 
 % Generate Monte Carlo samples
 u = rand(N_MC, 4); % random numbers between 0 and 1, 4 columns for emax, rpm, al, pl
+jobs = struct('Emax', {}, 'RPM', {}, 'AL', {}, 'PL', {}, 'ID', {});
 for k = 1:N_MC
     % minimum + random number between 0 and 1 * (maximum - minimum)
     new_job.Emax = emax_lo + u(k,1) * (emax_hi - emax_lo);
@@ -22,4 +26,6 @@ for k = 1:N_MC
 end
 
 % Save patients to CSV
-writetable(jobs, 'Data/MonteCarloPatients.csv');
+writetable(struct2table(jobs), 'Data/MonteCarloPatients.csv');
+
+

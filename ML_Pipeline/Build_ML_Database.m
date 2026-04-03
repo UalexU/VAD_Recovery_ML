@@ -182,13 +182,15 @@ for i = 1:total_jobs
         result.Inputs = job;
 
         % Final Features
-        result.Features.FFT_H1    = oscData.H1;
-        result.Features.FFT_H2    = oscData.H2;
-        result.Features.PumpFlow  = oscData.Qpump;     % Delta (max-min)
-        result.Features.dPumpFlow = oscData.dQpump;     % dQ/dt
-        result.Features.MAP       = oscData.MAP;        % Arterial Mean Pressure (Cuff)
-        result.Features.SBP       = oscData.SBP;        % Max Arterial Pressure (Cuff)
-        result.Features.DBP       = oscData.DBP;        % Min Arterial Pressure (Cuff)
+        result.Features.FFT_H1    = oscData.H1;       % Cuff pressure 1st harmonic
+        result.Features.FFT_H2    = oscData.H2;       % Cuff pressure 2nd harmonic
+        result.Features.PumpFlow  = oscData.Qpump;    % Flow pulsatility (peak-to-peak)
+        result.Features.dPumpFlow = oscData.dQpump;   % Flow derivative pulsatility (peak-to-peak)
+        result.Features.dQ_H1     = oscData.dQ_H1;   % dQ/dt 1st harmonic (preload-sensitive)
+        result.Features.dQ_H2     = oscData.dQ_H2;   % dQ/dt 2nd harmonic (waveform shape)
+        result.Features.MAP       = oscData.MAP;      % Mean Arterial Pressure (Cuff)
+        result.Features.SBP       = oscData.SBP;      % Systolic Pressure (Cuff)
+        result.Features.DBP       = oscData.DBP;      % Diastolic Pressure (Cuff)
 
         % Raw signals for post-processing
         result.Signals.P     = P;     % Primary pressure log

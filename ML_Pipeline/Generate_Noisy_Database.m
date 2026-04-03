@@ -52,12 +52,13 @@ parfor i = 1:num_files
     try
         data = load(filename);
         
-        % --- 1. Process Qpump (Full Re-calculation) ---
+        % --- 1. Process Qpump  ---
         Q_raw = data.Signals.Qpump(:, 2); % Time is col 1, Data col 2
-        Ts_Q = data.Signals.Qpump(2,1) - data.Signals.Qpump(1,1);
+
+        Ts_Q = data.Signals.Qpump(2,1) - data.Signals.Qpump(1,1); % sample period
         
-        % Add Noise to Signal
-        sigma_Q = std(Q_raw) * NOISE_LEVEL;
+        % Add noise into Qpump 
+        sigma_Q = std(Q_raw) * NOISE_LEVEL; % multiply the standard deviation of the Qpump with the noise
         Q_noisy = Q_raw + randn(size(Q_raw)) * sigma_Q;
         
         % Trim to last 5 cycles
@@ -73,7 +74,7 @@ parfor i = 1:num_files
         [b, a] = butter(Filter_Order, Filter_Cutoff / (fs/2), 'low');
         dQ_filtered = filtfilt(b, a, dQ_numeric);
         
-        % Extract Pulsatility (Robust Peak-to-Peak)
+        % Extract Pulsatility 
         feat_PumpFlow = max(Q_trim) - min(Q_trim);
         feat_dPumpFlow = max(dQ_filtered) - min(dQ_filtered);
         

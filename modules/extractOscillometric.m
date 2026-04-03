@@ -12,6 +12,8 @@ Pcuff   = Pressure(:,3);
 % FFT on full cuff pressure (original behavior)
 [O.H1, O.H2] = getFFT(Pcuff, timeVec, false);
 
+
+
 % Pressure peaks
 [O.Psa_max] = getPeakInfo(Psa_log);
 [O.Prv_max] = getPeakInfo(Prv_log);
@@ -95,5 +97,10 @@ if ~isempty(maxtab_dQ) && ~isempty(mintab_dQ)
 else
     O.dQpump = max(dQ_trim) - min(dQ_trim);
 end
+
+% --- FFT on trimmed dQ/dt signal ---
+% Must use Ts_Q-based time vector: dQ_trim length differs from P_all.Time
+time_dQ = (0:length(dQ_trim)-1)' * Ts_Q;
+[O.dQ_H1, O.dQ_H2] = getFFT(dQ_trim, time_dQ, false);
 
 end
