@@ -30,11 +30,17 @@
 %     Outputs: FFT_H1, FFT_H2, PumpFlow, dPumpFlow, MAP, SBP, DBP
 %
 %   How to use on multiple computers:
-%     1. Generate the design ONCE on one PC (or use the same rng_seed).
-%     2. Sync this folder to all PCs.
-%     3. Run this script on all PCs simultaneously.
-%     4. The script shuffles and skips existing files.
-%     5. When done, run Compile_Master_Database.m.
+%     STEP 1 (one PC only): Set GENERATE_JOBS = true, run once.
+%            This saves LH_jobs_NNNNN.mat to the shared drive.
+%     STEP 2 (all PCs):    Set GENERATE_JOBS = false, run simultaneously.
+%            Each PC loads the same job list, shuffles independently,
+%            and skips files already saved by other PCs.
+%     STEP 3: Run Compile_Master_Database.m when all sims are done.
+%
+%   NOTE: Do NOT split N_LH across computers (e.g. 15000 each).
+%         LHS is a single coordinated design — splitting produces two
+%         separate 15k designs that when merged miss bins and double-
+%         cover others, losing the stratification guarantee.
 %
 % ============================================================
 
@@ -55,62 +61,23 @@ HeartConstantsv3;
 %              LATIN HYPERCUBE CONFIGURATION
 % ============================================================
 
-N_LH = 5000;       % Total number of samples (tune to your compute budget)
-rng_seed = 42;      % Fixed seed so every PC generates the SAME design
-maximin_iters = 50; % Optimisation iterations for the maximin criterion
+% --- USER SETTINGS ---
+N_LH          = 30000; % Total samples for the FULL design (all PCs combined)
+rng_seed      = 42;    % Fixed seed — must be identical on every PC
+maximin_iters = 50;    % Optimisation iterations (higher = better coverage, slower)
 
-% 4D bounding box [lo, hi] for each axis
+% Set true on ONE PC first to generate and save the job list.
+% Then set false and run on all PCs to execute simulations.
+GENERATE_JOBS = true;
+
+% 4D bounding box [lo, hi]
 emax_lo = 0.14;   emax_hi = 1.20;
 rpm_lo  = 8;       rpm_hi  = 10;
 al_lo   = 0.05;    al_hi   = 5.0;
 pl_lo   = 0.1;     pl_hi   = 1.9;
 
 %% ============================================================
-%              GENERATE LHS DESIGN
-% ============================================================
-
-fprintf('=== ML Database Builder (Latin Hypercube / Distributed) ===\n');
-fprintf('Samples: %d | Maximin iterations: %d | Seed: %d\n', N_LH, maximin_iters, rng_seed);
-fprintf('  Emax [%.3f, %.3f], RPM [%.1f, %.1f], AL [%.2f, %.2f], PL [%.1f, %.1f]\n', ...
-    emax_lo, emax_hi, rpm_lo, rpm_hi, al_lo, al_hi, pl_lo, pl_hi);
-
-rng(rng_seed);
-fprintf('Generating maximin LHS design (%d x 4)... ', N_LH);
-tic;
-U = lhsdesign(N_LH, 4, 'Criterion', 'maximin', 'Iterations', maximin_iters);
-fprintf('Done (%.1fs)\n', toc);
-
-% Scale from [0,1]^4 to physical bounds
-Emax_samples = emax_lo + U(:,1) * (emax_hi - emax_lo);
-RPM_samples  = rpm_lo  + U(:,2) * (rpm_hi  - rpm_lo);
-AL_samples   = al_lo   + U(:,3) * (al_hi   - al_lo);
-PL_samples   = pl_lo   + U(:,4) * (pl_hi   - pl_lo);
-
-%% ============================================================
-%              BUILD JOB LIST
-% ============================================================
-
-jobs = struct('Emax', {}, 'RPM', {}, 'AL', {}, 'PL', {}, 'ID', {});
-
-for k = 1:N_LH
-    new_job.Emax = Emax_samples(k);
-    new_job.RPM  = RPM_samples(k);
-    new_job.AL   = AL_samples(k);
-    new_job.PL   = PL_samples(k);
-    new_job.ID   = sprintf('LH_%07d', k);
-    jobs(end+1) = new_job; %#ok<SAGROW>
-end
-
-total_jobs = numel(jobs);
-fprintf('Total Simulations: %d\n', total_jobs);
-
-% Shuffle for multi-computer collision avoidance
-rng('shuffle');
-jobs = jobs(randperm(total_jobs));
-fprintf('Job list shuffled for distributed execution.\n');
-
-%% ============================================================
-%                  OUTPUT SETUP
+%              SHARED DRIVE PATH
 % ============================================================
 
 SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_LH';
@@ -122,6 +89,63 @@ else
 end
 
 if ~exist(sim_folder, 'dir'), mkdir(sim_folder); end
+
+% Job list file lives on the shared drive so all PCs load the same design
+jobs_file = fullfile(sim_folder, sprintf('LH_jobs_%d.mat', N_LH));
+
+%% ============================================================
+%              GENERATE OR LOAD JOB LIST
+% ============================================================
+
+fprintf('=== ML Database Builder (Latin Hypercube / Distributed) ===\n');
+
+if GENERATE_JOBS
+    fprintf('Mode: GENERATE — creating %d-point maximin LHS design (seed=%d)...\n', N_LH, rng_seed);
+
+    rng(rng_seed);
+    tic;
+    U = lhsdesign(N_LH, 4, 'Criterion', 'maximin', 'Iterations', maximin_iters);
+    fprintf('LHS design generated in %.1fs.\n', toc);
+
+    % Scale [0,1]^4 to physical bounds
+    Emax_samples = emax_lo + U(:,1) * (emax_hi - emax_lo);
+    RPM_samples  = rpm_lo  + U(:,2) * (rpm_hi  - rpm_lo);
+    AL_samples   = al_lo   + U(:,3) * (al_hi   - al_lo);
+    PL_samples   = pl_lo   + U(:,4) * (pl_hi   - pl_lo);
+
+    jobs = struct('Emax', {}, 'RPM', {}, 'AL', {}, 'PL', {}, 'ID', {});
+    for k = 1:N_LH
+        new_job.Emax = Emax_samples(k);
+        new_job.RPM  = RPM_samples(k);
+        new_job.AL   = AL_samples(k);
+        new_job.PL   = PL_samples(k);
+        new_job.ID   = sprintf('LH_%07d', k);
+        jobs(end+1)  = new_job; %#ok<SAGROW>
+    end
+
+    save(jobs_file, 'jobs', 'N_LH', 'rng_seed', 'emax_lo', 'emax_hi', ...
+         'rpm_lo', 'rpm_hi', 'al_lo', 'al_hi', 'pl_lo', 'pl_hi');
+    fprintf('Job list saved to: %s\n', jobs_file);
+    fprintf('Now set GENERATE_JOBS = false and run on all PCs.\n');
+    return; % Stop here — do NOT run simulations in generation mode
+
+else
+    if ~isfile(jobs_file)
+        error('Job list not found at %s.\nRun with GENERATE_JOBS = true first (on one PC).', jobs_file);
+    end
+    fprintf('Mode: SIMULATE — loading job list from shared drive...\n');
+    loaded = load(jobs_file, 'jobs');
+    jobs = loaded.jobs;
+    fprintf('Loaded %d jobs (seed=%d).\n', numel(jobs), rng_seed);
+end
+
+total_jobs = numel(jobs);
+fprintf('Total Simulations: %d\n', total_jobs);
+
+% Shuffle for multi-computer collision avoidance
+rng('shuffle');
+jobs = jobs(randperm(total_jobs));
+fprintf('Job list shuffled for distributed execution.\n');
 
 %% Fixed parameters
 pump_on = 1;
