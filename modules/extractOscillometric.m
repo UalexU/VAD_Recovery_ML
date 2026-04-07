@@ -30,12 +30,16 @@ O.DeltaPlv = O.Plv_max - O.Plv_min;
 
 % --- Pump Flow Analysis (trimmed to last N complete cycles) ---
 num_cycles = 5;
-Q_full  = Qpump(:, 2);
-% dQ_full = dQpump(:, 2); % ORIGINAL SIGNAL FROM SIMULINK (Unused now)
 
-% I need to do the delta max - min. 
-N_Q = length(Q_full);
-Ts_Q = Qpump(2,1) - Qpump(1,1); % Time step from column 1
+% Handle Qpump as either matrix or timeseries
+if isa(Qpump, 'timeseries')
+    Q_full = Qpump.Data;
+    time_full = Qpump.Time;
+    Ts_Q = time_full(2) - time_full(1);
+else
+    Q_full = Qpump(:, 2);
+    Ts_Q = Qpump(2,1) - Qpump(1,1);
+end
 
 if nargin >= 8 && ~isempty(HR) && HR > 0
     T_beat = 60 / HR;
@@ -99,7 +103,7 @@ else
 end
 
 % --- FFT on trimmed dQ/dt signal ---
-% Must use Ts_Q-based time vector: dQ_trim length differs from P_all.Time
+% dQ_trim length differs from P_all.Time
 time_dQ = (0:length(dQ_trim)-1)' * Ts_Q;
 [O.dQ_H1, O.dQ_H2] = getFFT(dQ_trim, time_dQ, false);
 

@@ -53,9 +53,15 @@ parfor i = 1:num_files
         data = load(filename);
         
         % --- 1. Process Qpump  ---
-        Q_raw = data.Signals.Qpump(:, 2); % Time is col 1, Data col 2
-
-        Ts_Q = data.Signals.Qpump(2,1) - data.Signals.Qpump(1,1); % sample period
+        % Handle Qpump as matrix or timeseries
+        if isa(data.Signals.Qpump, 'timeseries')
+            Q_raw = data.Signals.Qpump.Data;
+            time_Q = data.Signals.Qpump.Time;
+            Ts_Q = time_Q(2) - time_Q(1);
+        else
+            Q_raw = data.Signals.Qpump(:, 2); % Time is col 1, Data col 2
+            Ts_Q = data.Signals.Qpump(2,1) - data.Signals.Qpump(1,1); % sample period
+        end
         
         % Add noise into Qpump 
         sigma_Q = std(Q_raw) * NOISE_LEVEL; % multiply the standard deviation of the Qpump with the noise
