@@ -152,6 +152,11 @@ pump_on = 1;
 threshold = 0.25;
 Vuev_Gain_Factor = 1;
 
+% --- Drop suction-like runs from the ML set (no Result_*.mat; see EXCLUDED_SUCTION_*.txt) ---
+EXCLUDE_SUCTION              = true;
+SUCTION_PLV_MIN_THRESHOLD_MMHG = 0;    % steady-state min Plv below this => exclude (mmHg); try 5 for stricter
+SUCTION_STEADY_STATE_FRAC    = 0.5;  % last 50 percent of Plv_log (by time) for min Plv
+
 %% ============================================================
 %                    MAIN SIMULATION LOOP
 % ============================================================
@@ -162,6 +167,7 @@ fprintf('Output: %s\n\n', sim_folder);
 t_start = tic;
 completed_session = 0;
 skipped = 0;
+excluded_suction = 0;
 
 for i = 1:total_jobs
     job = jobs(i);
@@ -169,8 +175,9 @@ for i = 1:total_jobs
     % --- 1. Check if Already Done ---
     filename = fullfile(sim_folder, ['Result_' job.ID '.mat']);
     err_file = fullfile(sim_folder, ['ERROR_' job.ID '.txt']);
+    suction_excl_file = fullfile(sim_folder, ['EXCLUDED_SUCTION_' job.ID '.txt']);
 
-    if isfile(filename) || isfile(err_file)
+    if isfile(filename) || isfile(err_file) || isfile(suction_excl_file)
         skipped = skipped + 1;
         continue;
     end
@@ -224,7 +231,22 @@ for i = 1:total_jobs
         result.Signals.Qpump = Qpump;
         result.Signals.Psa   = Psa_log;
 
-        % --- 5. Save ---
+        % --- 5. Suction filter (optional) ---
+        if EXCLUDE_SUCTION
+            [in_suction, suctInfo] = detectSuctionFromSim(Plv_log, ...
+                'PlvMinThreshold', SUCTION_PLV_MIN_THRESHOLD_MMHG, ...
+                'SteadyStateFrac', SUCTION_STEADY_STATE_FRAC);
+            if in_suction
+                fid = fopen(suction_excl_file, 'w');
+                fprintf(fid, '%s\n', suctInfo.reason);
+                fclose(fid);
+                fprintf('EXCLUDED suction: %s (%.1fs)\n', suctInfo.reason, sim_time);
+                excluded_suction = excluded_suction + 1;
+                continue;
+            end
+        end
+
+        % --- 6. Save ---
         save(filename, '-struct', 'result');
 
         fprintf('Done (%.1fs)\n', sim_time);
@@ -246,5 +268,6 @@ end
 
 fprintf('\n=== Session Complete ===\n');
 fprintf('Completed this session: %d\n', completed_session);
+fprintf('Excluded (suction heuristic): %d\n', excluded_suction);
 fprintf('Skipped (already done): %d\n', skipped);
-fprintf('Run Compile_Master_Database.m to merge all results.\n');
+fprintf('Run Compile_LH_Database.m to merge Result_LH_*.mat into the master table.\n');

@@ -41,6 +41,8 @@ else
     Ts_Q = Qpump(2,1) - Qpump(1,1);
 end
 
+N_Q = length(Q_full);
+
 if nargin >= 8 && ~isempty(HR) && HR > 0
     T_beat = 60 / HR;
     samples_Q = round(T_beat / Ts_Q) * num_cycles; % number of samples in the last N complete cycles 
