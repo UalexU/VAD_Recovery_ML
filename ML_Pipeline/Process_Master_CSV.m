@@ -12,8 +12,8 @@ clc; close all;
 % Examples: .../ML_Master_Database_LH.csv  or  .../ML_Master_Database.csv
 INPUT_CSV = '';  % empty => use SHARED_DRIVE_PATH below + DEFAULT_LH_CSV, or local Data/ML_Database_LH if path empty
 
-SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_LH';  % set [] to use ../Data/ML_Database_LH/
-DEFAULT_LH_CSV    = 'ML_Master_Database_LH.csv';  % change to ML_Master_Database.csv if using the MC compile output
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\Trained Models\CSV Simulation Files';  % set [] to use ../Data/ML_Database_LH/
+DEFAULT_LH_CSV    = 'ML_Master_Database_Noisy10_OptionB.csv';  % change to ML_Master_Database.csv if using the MC compile output
 OUTPUT_CSV_SUFFIX = '_processed';
 SAVE_MAT          = true;
 
@@ -63,9 +63,17 @@ end
 
 %% Condition from Emax (same rule as Compile_*_Database.m; overwrites CSV label if present)
 emax = T.Emax;
-T.Condition = zeros(height(T), 1);
-T.Condition(emax >= 0.25 & emax < 0.6) = 1;
-T.Condition(emax >= 0.6) = 2;
+cond_num = zeros(height(T), 1);
+cond_num(emax >= 0.25 & emax < 0.6) = 1;
+cond_num(emax >= 0.6) = 2;
+
+% Export Condition as text labels:
+%   0 -> Failure, 1 -> Recovery, 2 -> Normal
+cond_text = strings(height(T), 1);
+cond_text(cond_num == 0) = "Failure";
+cond_text(cond_num == 1) = "Recovery";
+cond_text(cond_num == 2) = "Normal";
+T.Condition = cond_text;
 
 %% Drop exact duplicate feature rows (keep first occurrence)
 if height(T) > 1
@@ -104,9 +112,9 @@ end
 %% Summary
 fprintf('\n--- Processed summary ---\n');
 fprintf('Rows in  -> out: %d -> %d\n', n_in, height(T_out));
-fprintf('Condition 0 (Failing):  %d\n', sum(T_out.Condition == 0));
-fprintf('Condition 1 (Recovery): %d\n', sum(T_out.Condition == 1));
-fprintf('Condition 2 (Normal):   %d\n', sum(T_out.Condition == 2));
+fprintf('Condition Failure:  %d\n', sum(strcmp(string(T_out.Condition), "Failure")));
+fprintf('Condition Recovery: %d\n', sum(strcmp(string(T_out.Condition), "Recovery")));
+fprintf('Condition Normal:   %d\n', sum(strcmp(string(T_out.Condition), "Normal")));
 
 fprintf('\n--- Feature ranges (processed) ---\n');
 for c = 1:numel(feature_cols)

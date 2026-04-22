@@ -1,0 +1,1 @@
+save('myTrainedModel.mat', 'trainedModel')

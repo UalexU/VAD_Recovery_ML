@@ -1,7 +1,10 @@
 %% ============================================================
 %   GENERATE NOISY DATABASE (Robustness Test - Hybrid Mode)
 %   1. Loads Qpump -> Adds noise -> Recalculates dQ/dt.
-%   2. Loads P_all (if available) -> Adds noise to Pcuff -> Recalculates FFT.
+%      Also recomputes dQ_H1/dQ_H2 via getFFT on filtered dQ/dt (matches
+%      extractOscillometric — these are harmonic peaks of pump-flow derivative,
+%      not FFT of raw Qpump).
+%   2. Loads P_all (if available) -> Adds noise to Pcuff -> Recalculates FFT_H1/H2 (cuff).
 %   3. Fallback: If P_all missing, adds statistical noise to pressure features.
 %   4. Compiles a new "Noisy" Master CSV (Option B).
 % ============================================================
@@ -21,8 +24,8 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-sim_folder = fullfile(db_folder, 'simulations_30');
-output_csv = fullfile(db_folder, 'ML_Master_Database_Noisy10_OptionB.csv');
+sim_folder = fullfile(db_folder, 'simulations_LH');
+output_csv = fullfile(db_folder, 'ML_LH_Database_Noisy10_OptionB.csv');
 
 if ~exist(sim_folder, 'dir')
     error('Simulation folder not found at %s', sim_folder);
@@ -41,6 +44,7 @@ Filter_Cutoff = 20; % Hz
 all_rows = [];
 col_names = {'Emax', 'RPM', 'Afterload', 'Preload', ...
              'FFT_H1', 'FFT_H2', 'PumpFlow', 'dPumpFlow', ...
+             'dQ_H1', 'dQ_H2', ...
              'MAP', 'SBP', 'DBP', 'Condition'};
 
 t_start = tic;
@@ -83,6 +87,10 @@ parfor i = 1:num_files
         % Extract Pulsatility 
         feat_PumpFlow = max(Q_trim) - min(Q_trim);
         feat_dPumpFlow = max(dQ_filtered) - min(dQ_filtered);
+
+        % Harmonics of filtered dQ/dt (same definition as extractOscillometric)
+        time_dQ = (0:length(dQ_filtered)-1)' * Ts_Q;
+        [feat_dQ_H1, feat_dQ_H2] = getFFT(dQ_filtered, time_dQ, false);
         
         % --- 2. Process Pressure/FFT ---
         if isfield(data.Signals, 'P_all')
@@ -115,6 +123,7 @@ parfor i = 1:num_files
             feat_MAP = data.Features.MAP * (1 + randn()*NOISE_LEVEL);
             feat_SBP = data.Features.SBP * (1 + randn()*NOISE_LEVEL);
             feat_DBP = data.Features.DBP * (1 + randn()*NOISE_LEVEL);
+            % dQ_H1/dQ_H2 already derived from noisy Qpump above; no override here
         end
         
         % --- 3. Condition Label ---
@@ -130,6 +139,7 @@ parfor i = 1:num_files
         % --- 4. Assemble Row ---
         row = [data.Inputs.Emax, data.Inputs.RPM, data.Inputs.AL, data.Inputs.PL, ...
                feat_H1, feat_H2, feat_PumpFlow, feat_dPumpFlow, ...
+               feat_dQ_H1, feat_dQ_H2, ...
                feat_MAP, feat_SBP, feat_DBP, cond];
            
         all_rows = [all_rows; row]; %#ok<AGROW>

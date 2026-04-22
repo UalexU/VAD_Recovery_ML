@@ -7,6 +7,8 @@
 clc; close all;
 
 %% Setup Folders
+addpath('..');
+addpath(genpath('../modules'));
 % --- CHANGE THIS TO YOUR SHARED DRIVE PATH ---
 SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_LH'; 
 
@@ -52,7 +54,48 @@ for i = 1:num_files
     filename = fullfile(files(i).folder, files(i).name);
 
     try
-        data = load(filename, 'Inputs', 'Features');
+        data = load(filename); % Load full struct for repair check
+
+        % --- AUTO-REPAIR: Missing dQ_H1/dQ_H2 ---
+        if ~isfield(data.Features, 'dQ_H1') || ~isfield(data.Features, 'dQ_H2')
+            if isfield(data, 'Signals') && isfield(data.Signals, 'Qpump')
+                % Extract Qpump
+                if isa(data.Signals.Qpump, 'timeseries')
+                    Q_raw = data.Signals.Qpump.Data;
+                    time_q = data.Signals.Qpump.Time;
+                else
+                    Q_raw = data.Signals.Qpump(:, 2);
+                    time_q = data.Signals.Qpump(:, 1);
+                end
+                Ts_q = time_q(2) - time_q(1);
+                
+                % Calculate dQ/dt and filter (Matches extractOscillometric.m)
+                dQ_numeric = [0; diff(Q_raw)] ./ Ts_q;
+                fs_q = 1/Ts_q;
+                [b, a] = butter(3, 20/(fs_q/2), 'low');
+                dQ_filtered = filtfilt(b, a, dQ_numeric);
+                
+                % Trim to last 20% for harmonics
+                start_idx = round(length(dQ_filtered) * 0.8);
+                dQ_trim = dQ_filtered(start_idx:end);
+                time_dQ = (0:length(dQ_trim)-1)' * Ts_q;
+                
+                % Get Harmonics
+                [h1, h2] = getFFT(dQ_trim, time_dQ, false);
+                
+                % Update data structure
+                data.Features.dQ_H1 = h1;
+                data.Features.dQ_H2 = h2;
+                
+                % Save back to file (Selective save to avoid corrupting other fields)
+                save(filename, '-struct', 'data');
+                fprintf('  [Repaired] %s: Added dQ harmonics.\n', files(i).name);
+            else
+                % If no signals, fill with NaN to allow compile to continue
+                data.Features.dQ_H1 = NaN;
+                data.Features.dQ_H2 = NaN;
+            end
+        end
 
         row = [ ...
             data.Inputs.Emax, ...
