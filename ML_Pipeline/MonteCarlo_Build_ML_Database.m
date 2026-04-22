@@ -54,7 +54,7 @@ HeartConstantsv3;
 % ============================================================
 
 USE_MONTE_CARLO = true;   % false = full factorial grid (emax_sweep, etc.)
-N_MC = 5000;              % Monte Carlo sample count (if USE_MONTE_CARLO)
+N_MC = 30000;              % Monte Carlo sample count (if USE_MONTE_CARLO)
 
 rng_seed = 42;            % set for reproducibility; or use rng('shuffle') below
 rng(rng_seed);
@@ -131,7 +131,7 @@ fprintf('Job list shuffled.\n');
 % Example: 'Z:\Lab_Thesis\Simulations' or '/Volumes/Shared/Sims'
 % If you leave it empty '', it will use the local Data folder.
 
-SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\simulations_30'; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\MC_Simulation\MC_Simulations_Part2'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder  = fullfile('Data', 'ML_Database');
