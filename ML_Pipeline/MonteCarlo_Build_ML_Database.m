@@ -152,27 +152,22 @@ Vuev_Gain_Factor = 1;
 %                    MAIN SIMULATION LOOP
 % ============================================================
 
-fprintf('\nStarting Parallel Distributed Simulation...\n');
+fprintf('\nStarting Distributed Simulation...\n');
 fprintf('Output: %s\n\n', sim_folder);
 
-% Make BASENAME local for parfor workers
-local_basename = BASENAME;
-
 t_start = tic;
+completed_session = 0;
+skipped = 0;
 
-parfor i = 1:total_jobs
+for i = 1:total_jobs
     job = jobs(i);
-
-    % --- 0. Worker Environment Setup ---
-    global BASENAME
-    BASENAME = local_basename;
-    HeartConstantsv3;
 
     % --- 1. Check if Already Done ---
     filename = fullfile(sim_folder, ['Result_' job.ID '.mat']);
     err_file = fullfile(sim_folder, ['ERROR_' job.ID '.txt']);
 
     if isfile(filename) || isfile(err_file)
+        skipped = skipped + 1;
         continue;
     end
 
@@ -183,18 +178,18 @@ parfor i = 1:total_jobs
     Rep_Gain_Factor = job.AL;
     Vusv_Gain_Factor = job.PL;
 
+    fprintf('[%d/%d] Running: %s ... ', i, total_jobs, job.ID);
+
     % --- 3. Run Simulation ---
     try
         sim_tic = tic;
-        sim('modelv3_1', 'SrcWorkspace', 'current');
+        sim('modelv3_1');
         sim_time = toc(sim_tic);
     catch ME
-        fprintf('FAILED: %s (%s)\n', job.ID, ME.message);
+        fprintf('FAILED (%s)\n', ME.message);
         fid = fopen(err_file, 'w');
-        if fid ~= -1
-            fprintf(fid, '%s', ME.message);
-            fclose(fid);
-        end
+        fprintf(fid, '%s', ME.message);
+        fclose(fid);
         continue;
     end
 
@@ -219,19 +214,28 @@ parfor i = 1:total_jobs
         result.Features.SBP       = oscData.SBP;
         result.Features.DBP       = oscData.DBP;
 
-        % Raw signals
+        % Raw signals for post-processing
         result.Signals.P     = P;
         result.Signals.P_all = P_all;
         result.Signals.Qpump = Qpump;
         result.Signals.Psa   = Psa_log;
 
         % --- 5. Save ---
-        saveResultFile(filename, result);
+        save(filename, '-struct', 'result');
 
-        fprintf('Done: %s (%.1fs)\n', job.ID, sim_time);
+        fprintf('Done (%.1fs)\n', sim_time);
+        completed_session = completed_session + 1;
 
     catch ME
-        fprintf('Extract error on %s: %s\n', job.ID, ME.message);
+        fprintf('Extract error: %s\n', ME.message);
+    end
+
+    % Progress report every 10 completions
+    if mod(completed_session, 10) == 0 && completed_session > 0
+        elapsed = toc(t_start);
+        rate = completed_session / elapsed;
+        remaining = (total_jobs - skipped - completed_session) / rate;
+        fprintf('  >> %.1f sims/min | ETA: %.0f min\n', rate * 60, remaining / 60);
     end
 
 end
