@@ -161,15 +161,15 @@ SUCTION_STEADY_STATE_FRAC    = 0.5;  % last 50 percent of Plv_log (by time) for 
 %                    MAIN SIMULATION LOOP
 % ============================================================
 
-fprintf('\nStarting Distributed Simulation...\n');
+fprintf('\nStarting Parallel Distributed Simulation...\n');
 fprintf('Output: %s\n\n', sim_folder);
 
-t_start = tic;
-completed_session = 0;
-skipped = 0;
-excluded_suction = 0;
+% Make BASENAME local for parfor workers
+local_basename = BASENAME;
 
-for i = 1:total_jobs
+t_start = tic;
+
+parfor i = 1:total_jobs
     job = jobs(i);
 
     % --- 1. Check if Already Done ---
@@ -178,7 +178,6 @@ for i = 1:total_jobs
     suction_excl_file = fullfile(sim_folder, ['EXCLUDED_SUCTION_' job.ID '.txt']);
 
     if isfile(filename) || isfile(err_file) || isfile(suction_excl_file)
-        skipped = skipped + 1;
         continue;
     end
 
@@ -189,18 +188,18 @@ for i = 1:total_jobs
     Rep_Gain_Factor  = job.AL;
     Vusv_Gain_Factor = job.PL;
 
-    fprintf('[%d/%d] Running: %s ... ', i, total_jobs, job.ID);
-
     % --- 3. Run Simulation ---
     try
         sim_tic = tic;
         sim('modelv3_1');
         sim_time = toc(sim_tic);
     catch ME
-        fprintf('FAILED (%s)\n', ME.message);
+        fprintf('FAILED: %s (%s)\n', job.ID, ME.message);
         fid = fopen(err_file, 'w');
-        fprintf(fid, '%s', ME.message);
-        fclose(fid);
+        if fid ~= -1
+            fprintf(fid, '%s', ME.message);
+            fclose(fid);
+        end
         continue;
     end
 
@@ -215,53 +214,50 @@ for i = 1:total_jobs
         result.Inputs = job;
 
         % Final Features
-        result.Features.FFT_H1    = oscData.H1;       % Cuff pressure 1st harmonic
-        result.Features.FFT_H2    = oscData.H2;       % Cuff pressure 2nd harmonic
-        result.Features.PumpFlow  = oscData.Qpump;    % Flow pulsatility (peak-to-peak)
-        result.Features.dPumpFlow = oscData.dQpump;   % Flow derivative pulsatility (peak-to-peak)
-        result.Features.dQ_H1     = oscData.dQ_H1;   % dQ/dt 1st harmonic (preload-sensitive)
-        result.Features.dQ_H2     = oscData.dQ_H2;   % dQ/dt 2nd harmonic (waveform shape)
-        result.Features.MAP       = oscData.MAP;      % Mean Arterial Pressure (Cuff)
-        result.Features.SBP       = oscData.SBP;      % Systolic Pressure (Cuff)
-        result.Features.DBP       = oscData.DBP;      % Diastolic Pressure (Cuff)
+        result.Features.FFT_H1    = oscData.H1;
+        result.Features.FFT_H2    = oscData.H2;
+        result.Features.PumpFlow  = oscData.Qpump;
+        result.Features.dPumpFlow = oscData.dQpump;
+        result.Features.dQ_H1     = oscData.dQ_H1;
+        result.Features.dQ_H2     = oscData.dQ_H2;
+        result.Features.MAP       = oscData.MAP;
+        result.Features.SBP       = oscData.SBP;
+        result.Features.DBP       = oscData.DBP;
 
-        % Raw signals for post-processing
+        % Raw signals
         result.Signals.P     = P;
         result.Signals.P_all = P_all;
         result.Signals.Qpump = Qpump;
         result.Signals.Psa   = Psa_log;
 
-        % --- 5. Suction filter (optional) ---
-        if EXCLUDE_SUCTION
+        % --- 5. Suction filter ---
+        % Using local variables to avoid parfor transparency issues
+        local_exclude_suction = EXCLUDE_SUCTION;
+        local_suction_threshold = SUCTION_PLV_MIN_THRESHOLD_MMHG;
+        local_suction_frac = SUCTION_STEADY_STATE_FRAC;
+
+        if local_exclude_suction
             [in_suction, suctInfo] = detectSuctionFromSim(Plv_log, ...
-                'PlvMinThreshold', SUCTION_PLV_MIN_THRESHOLD_MMHG, ...
-                'SteadyStateFrac', SUCTION_STEADY_STATE_FRAC);
+                'PlvMinThreshold', local_suction_threshold, ...
+                'SteadyStateFrac', local_suction_frac);
             if in_suction
                 fid = fopen(suction_excl_file, 'w');
-                fprintf(fid, '%s\n', suctInfo.reason);
-                fclose(fid);
-                fprintf('EXCLUDED suction: %s (%.1fs)\n', suctInfo.reason, sim_time);
-                excluded_suction = excluded_suction + 1;
+                if fid ~= -1
+                    fprintf(fid, '%s\n', suctInfo.reason);
+                    fclose(fid);
+                end
+                fprintf('EXCLUDED suction: %s (%.1fs)\n', job.ID, sim_time);
                 continue;
             end
         end
 
         % --- 6. Save ---
-        save(filename, '-struct', 'result');
+        saveResultFile(filename, result);
 
-        fprintf('Done (%.1fs)\n', sim_time);
-        completed_session = completed_session + 1;
+        fprintf('Done: %s (%.1fs)\n', job.ID, sim_time);
 
     catch ME
-        fprintf('Extract error: %s\n', ME.message);
-    end
-
-    % Progress report every 10 completions
-    if mod(completed_session, 10) == 0 && completed_session > 0
-        elapsed = toc(t_start);
-        rate = completed_session / elapsed;
-        remaining = (total_jobs - skipped - completed_session) / rate;
-        fprintf('  >> %.1f sims/min | ETA: %.0f min\n', rate * 60, remaining / 60);
+        fprintf('Extract error on %s: %s\n', job.ID, ME.message);
     end
 
 end
