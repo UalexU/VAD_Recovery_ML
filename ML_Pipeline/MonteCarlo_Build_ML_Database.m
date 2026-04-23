@@ -163,6 +163,11 @@ t_start = tic;
 parfor i = 1:total_jobs
     job = jobs(i);
 
+    % --- 0. Worker Environment Setup ---
+    global BASENAME
+    BASENAME = local_basename;
+    HeartConstantsv3;
+
     % --- 1. Check if Already Done ---
     filename = fullfile(sim_folder, ['Result_' job.ID '.mat']);
     err_file = fullfile(sim_folder, ['ERROR_' job.ID '.txt']);
@@ -181,7 +186,7 @@ parfor i = 1:total_jobs
     % --- 3. Run Simulation ---
     try
         sim_tic = tic;
-        sim('modelv3_1');
+        sim('modelv3_1', 'SrcWorkspace', 'current');
         sim_time = toc(sim_tic);
     catch ME
         fprintf('FAILED: %s (%s)\n', job.ID, ME.message);
