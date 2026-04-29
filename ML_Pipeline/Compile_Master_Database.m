@@ -19,7 +19,7 @@ clc; close all;
 addpath('..');
 addpath(genpath('../modules'));
 
-SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\';
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\Step_simulations';
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder = fullfile('Data', 'ML_Database');
@@ -27,11 +27,11 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-sim_folder  = fullfile(db_folder, 'simulations_30');
-clean_csv   = fullfile(db_folder, 'ML_Master_Database_Clean.csv');
-clean_mat   = fullfile(db_folder, 'ML_Master_Database_Clean.mat');
-accepted_mat = fullfile(db_folder, 'AcceptedFiles.mat');   % consumed by Generate_Noisy_Database
-exclusion_log = fullfile(db_folder, 'QC_Exclusion_Log.csv');
+sim_folder  = fullfile(db_folder, 'Step Simulations 2');
+clean_csv   = fullfile(db_folder, 'Step2_Database_Clean.csv');
+clean_mat   = fullfile(db_folder, 'Step2_Database_Clean.mat');
+accepted_mat = fullfile(db_folder, 'Step2_AcceptedFiles.mat');   % consumed by Generate_Noisy_Database
+exclusion_log = fullfile(db_folder, 'Step2_QC_Exclusion_Log.csv');
 
 if ~exist(sim_folder, 'dir')
     error('Simulation folder not found: %s', sim_folder);
@@ -52,7 +52,7 @@ end
 %% Suction Detection Parameters
 PLV_MIN_THRESHOLD  = 0;    % mmHg — Plv below this = suction
 STEADY_STATE_FRAC  = 0.5;  % Use last 50% of signal as steady-state window
-QPUMP_NEG_FRACTION = 0.05; % Proxy: if >5% of trimmed Qpump samples are negative → flag
+QPUMP_NEG_FRACTION = 0.50; % Proxy: increased to 50% to avoid flagging high-afterload regurgitation
 
 %% Column Definitions
 col_names = {'Emax', 'RPM', 'Afterload', 'Preload', ...
@@ -176,7 +176,7 @@ save(accepted_mat, 'accepted_files');
 
 % Write exclusion log
 if ~isempty(exclusion_rows)
-    ExclusionTable = cell2table(exclusion_rows, ...
+    ExclusionTable = cell2table(vertcat(exclusion_rows{:}), ...
         'VariableNames', {'File', 'Reason', 'Detail'});
     writetable(ExclusionTable, exclusion_log);
     fprintf('\nExclusion log saved: %s (%d entries)\n', exclusion_log, height(ExclusionTable));

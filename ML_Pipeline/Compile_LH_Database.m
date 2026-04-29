@@ -39,7 +39,7 @@ end
 %% Suction Detection Parameters
 PLV_MIN_THRESHOLD  = 0;    % mmHg — Plv below this = suction
 STEADY_STATE_FRAC  = 0.5;  % Use last 50% of signal as steady-state window
-QPUMP_NEG_FRACTION = 0.05; % Proxy: if >5% of trimmed Qpump samples are negative → flag
+QPUMP_NEG_FRACTION = 0.50; % Proxy: increased to 50% to avoid flagging high-afterload regurgitation
 
 %% Column Definitions (Must match LH_Build_ML_Database.m)
 col_names = {'Emax', 'RPM', 'Afterload', 'Preload', ...
@@ -205,7 +205,7 @@ save(accepted_mat, 'accepted_files');
 
 % Write exclusion log
 if ~isempty(exclusion_rows)
-    ExclusionTable = cell2table(exclusion_rows, ...
+    ExclusionTable = cell2table(vertcat(exclusion_rows{:}), ...
         'VariableNames', {'File', 'Reason', 'Detail'});
     writetable(ExclusionTable, exclusion_log);
     fprintf('\nExclusion log saved: %s (%d entries)\n', exclusion_log, height(ExclusionTable));
