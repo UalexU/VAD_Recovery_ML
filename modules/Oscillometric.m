@@ -64,6 +64,11 @@ set(gca,'xdir','reverse') % Reverse the x-axis
 hold on
 end
 % Extract data for curve fitting in Domain 1
+if isempty(PP) || length(PP) < 3
+    SBP = NaN; DBP = NaN; MAP = NaN;
+    return;
+end
+
 [dYmax, Imax]=max(diff(PP));
     % Instantaneous diastolic cuff pressure in Domain 1 
     Pd1 = Pc(1:Imax);
@@ -77,10 +82,18 @@ end
 
 % Least squares fit to estimate the coefficients a and b
 % Domain 1
-K1 = polyfit(Pd1, log(DP1), 1);
+if length(Pd1) > 1
+    K1 = polyfit(Pd1, log(DP1), 1);
+else
+    K1 = [0, 0]; % Fallback if not enough points
+end
 DP1_hat = exp(K1(2)*ones(size(Pd1)) + K1(1)*Pd1);
 E1 = DP1 - DP1_hat;
-EI1 = sqrt((E1'*E1)/(DP1'*DP1))*100; %Estimation error index in percentage
+if (DP1'*DP1) > 0
+    EI1 = sqrt((E1'*E1)/(DP1'*DP1))*100; %Estimation error index in percentage
+else
+    EI1 = 0;
+end
 
 if doPlot
 % Show markers of the estimated pressure envelope in Domain 1
@@ -88,10 +101,18 @@ plot(Pd1, DP1_hat, 'k+'), hold on
 end
 
 % Domain 3
-K3 = polyfit(Pd3, log(DP3), 1);
+if length(Pd3) > 1
+    K3 = polyfit(Pd3, log(DP3), 1);
+else
+    K3 = [0, 0]; % Fallback if not enough points
+end
 DP3_hat = exp(K3(2)*ones(size(Pd3)) + K3(1)*Pd3);
 E3 = DP3 - DP3_hat;
-EI3 = sqrt((E3'*E3)/(DP3'*DP3))*100; %Estimation error index in percentage
+if (DP3'*DP3) > 0
+    EI3 = sqrt((E3'*E3)/(DP3'*DP3))*100; %Estimation error index in percentage
+else
+    EI3 = 0;
+end
 
 if doPlot
 % Show markers of the estimated pressure envelope in Domain 3
@@ -100,6 +121,13 @@ end
 % Systolic and Diastolic Pressure Estimation
 % Assign coefficients
 a = -K1(1);  b = K3(1);
+
+% Prevent division by zero or NaN if coefficients are invalid
+if b == 0 || isnan(a) || isnan(b)
+    SBP = NaN; DBP = NaN; MAP = NaN;
+    return;
+end
+
 Va0 = 0.3; V0 = 300; Patm = 760;
 
 % Define the ranges of systolic (40 to 160 mmHg) and diastolic
@@ -129,6 +157,12 @@ for m=1:length(SP),
         end;
     end;
 end;
+
+if isempty(SS)
+    SBP = NaN; DBP = NaN; MAP = NaN;
+    return;
+end
+
 [Y, I]=min(min(SS)); [X, J]=min(SS(:,I));
 SBP = min(SP)+J-1;
 DBP = min(DP)+I-1;
