@@ -130,12 +130,14 @@ for k = 1:num_missing
             result.ID = job.ID; result.Inputs = job;
             result.Features.FFT_H1 = oscData.H1; result.Features.FFT_H2 = oscData.H2;
             result.Features.PumpFlow = oscData.Qpump; result.Features.dPumpFlow = oscData.dQpump;
+            result.Features.dQ_H1 = oscData.dQ_H1; result.Features.dQ_H2 = oscData.dQ_H2;
             result.Features.MAP = oscData.MAP; result.Features.SBP = oscData.SBP; result.Features.DBP = oscData.DBP;
             % Raw signals for post-processing
             result.Signals.P     = P;
             result.Signals.P_all = P_all;
             result.Signals.Qpump = Qpump;
             result.Signals.Psa   = Psa_log;
+            result.Signals.Plv   = Plv_log;
             
             save(filename, '-struct', 'result');
             fprintf('FIXED! (%.1fs)\n', sim_time);
@@ -157,10 +159,12 @@ for k = 1:num_missing
         % NaN Features
         result.Features.FFT_H1 = NaN; result.Features.FFT_H2 = NaN;
         result.Features.PumpFlow = NaN; result.Features.dPumpFlow = NaN;
+        result.Features.dQ_H1 = NaN; result.Features.dQ_H2 = NaN;
         result.Features.MAP = NaN; result.Features.SBP = NaN; result.Features.DBP = NaN;
         
         % Empty Signals
-        result.Signals.Psa = []; result.Signals.Qpump = [];
+        result.Signals.P = []; result.Signals.P_all = [];
+        result.Signals.Psa = []; result.Signals.Qpump = []; result.Signals.Plv = [];
         
         save(filename, '-struct', 'result');
     end

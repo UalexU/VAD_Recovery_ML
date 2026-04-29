@@ -219,6 +219,7 @@ for i = 1:total_jobs
         result.Signals.P_all = P_all;
         result.Signals.Qpump = Qpump;
         result.Signals.Psa   = Psa_log;
+        result.Signals.Plv   = Plv_log;
 
         % --- 5. Save ---
         save(filename, '-struct', 'result');

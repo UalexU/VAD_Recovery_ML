@@ -51,11 +51,11 @@ for k = 1:N_MC
         
         % Determine Condition
         if strength_factor < 0.25
-            cond = 0; % Failing
+            cond = "Failure";
         elseif strength_factor < 0.6
-            cond = 1; % Recovery
+            cond = "Recovery";
         else
-            cond = 2; % Normal
+            cond = "Normal";
         end
         
         % --- Store Row ---
