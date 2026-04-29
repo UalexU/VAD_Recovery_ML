@@ -136,9 +136,9 @@ for i = 1:num_files
             data.Features.PumpFlow, data.Features.dPumpFlow, ...
             data.Features.dQ_H1, data.Features.dQ_H2, ...
             data.Features.MAP, data.Features.SBP, data.Features.DBP];
-    catch
-        exclusion_rows{end+1} = {fname, 'MISSING_FEATURE', 'One or more features could not be read'};
-        fprintf('  [EXCLUDED - feature]   %s\n', fname);
+    catch ME
+        exclusion_rows{end+1} = {fname, 'MISSING_FEATURE', ME.message};
+        fprintf('  [EXCLUDED - feature]   %s (%s)\n', fname, ME.message);
         continue;
     end
 
@@ -160,10 +160,12 @@ clean_rows = all_rows(valid_idx, :);
 
 ML_Table = array2table(clean_rows, 'VariableNames', col_names);
 
-Condition = zeros(height(ML_Table), 1);
-Condition(ML_Table.Emax >= 0.25 & ML_Table.Emax < 0.6) = 1;
-Condition(ML_Table.Emax >= 0.6) = 2;
-ML_Table.Condition = Condition;
+% Assign string labels for Condition
+Condition = strings(height(ML_Table), 1);
+Condition(ML_Table.Emax < 0.25) = "Failure";
+Condition(ML_Table.Emax >= 0.25 & ML_Table.Emax < 0.6) = "Recovery";
+Condition(ML_Table.Emax >= 0.6) = "Normal";
+ML_Table.Condition = categorical(Condition);
 
 %% Save Outputs
 writetable(ML_Table, clean_csv);
@@ -191,9 +193,9 @@ fprintf('  Clean CSV       : %s\n', clean_csv);
 fprintf('  Accepted list   : %s\n', accepted_mat);
 
 fprintf('\n--- Class Distribution ---\n');
-fprintf('  Failing  (0): %d\n', sum(ML_Table.Condition == 0));
-fprintf('  Recovery (1): %d\n', sum(ML_Table.Condition == 1));
-fprintf('  Normal   (2): %d\n', sum(ML_Table.Condition == 2));
+fprintf('  Failure  : %d\n', sum(ML_Table.Condition == "Failure"));
+fprintf('  Recovery : %d\n', sum(ML_Table.Condition == "Recovery"));
+fprintf('  Normal   : %d\n', sum(ML_Table.Condition == "Normal"));
 
 fprintf('\n--- Feature Ranges ---\n');
 for c = 5:length(col_names)

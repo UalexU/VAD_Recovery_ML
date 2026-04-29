@@ -131,18 +131,18 @@ parfor i = 1:num_files
         % --- 3. Condition Label ---
         emax = data.Inputs.Emax;
         if emax < 0.25
-            cond = 0; % Failing
+            cond = "Failure";
         elseif emax < 0.6
-            cond = 1; % Recovery
+            cond = "Recovery";
         else
-            cond = 2; % Normal
+            cond = "Normal";
         end
         
         % --- 4. Assemble Row ---
         row = [data.Inputs.Emax, data.Inputs.RPM, data.Inputs.AL, data.Inputs.PL, ...
                feat_H1, feat_H2, feat_PumpFlow, feat_dPumpFlow, ...
                feat_dQ_H1, feat_dQ_H2, ...
-               feat_MAP, feat_SBP, feat_DBP, cond];
+               feat_MAP, feat_SBP, feat_DBP];
            
         all_rows = [all_rows; row]; %#ok<AGROW>
         
@@ -152,8 +152,14 @@ parfor i = 1:num_files
 end
 
 %% Save
-ML_Table = array2table(all_rows, 'VariableNames', col_names);
-writetable(ML_Table, output_csv);
+ML_Table = array2table(all_rows, 'VariableNames', col_names(1:end-1));
+
+% Add Condition as a categorical column
+Condition = strings(height(ML_Table), 1);
+Condition(ML_Table.Emax < 0.25) = "Failure";
+Condition(ML_Table.Emax >= 0.25 & ML_Table.Emax < 0.6) = "Recovery";
+Condition(ML_Table.Emax >= 0.6) = "Normal";
+ML_Table.Condition = categorical(Condition);
 
 fprintf('Done in %.1f seconds.\n', toc(t_start));
 fprintf('Noisy Database (Option B) saved to: %s\n', output_csv);
