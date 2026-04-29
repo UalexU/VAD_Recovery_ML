@@ -24,16 +24,18 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-sim_folder = fullfile(db_folder, 'simulations_LH');
-output_csv = fullfile(db_folder, 'ML_LH_Database_Noisy10_OptionB.csv');
+output_csv    = fullfile(db_folder, 'ML_Master_Database_Noisy10.csv');
+accepted_mat  = fullfile(db_folder, 'AcceptedFiles.mat');
 
-if ~exist(sim_folder, 'dir')
-    error('Simulation folder not found at %s', sim_folder);
+% Load QC-approved file list from Compile_Master_Database.m
+if ~isfile(accepted_mat)
+    error('AcceptedFiles.mat not found at %s.\nRun Compile_Master_Database.m first.', accepted_mat);
 end
-
-files = dir(fullfile(sim_folder, 'Result_*.mat'));
-num_files = length(files);
-fprintf('Found %d simulation files. Generating noisy dataset (Option B)...\n', num_files);
+loaded = load(accepted_mat, 'accepted_files');
+accepted_files = loaded.accepted_files;
+num_files = numel(accepted_files);
+fprintf('Loaded %d QC-accepted simulation files from AcceptedFiles.mat.\n', num_files);
+fprintf('Generating noisy dataset...\n');
 
 %% Parameters
 NOISE_LEVEL = 0.10; % 10% noise
@@ -51,7 +53,7 @@ t_start = tic;
 
 %% Loop
 parfor i = 1:num_files
-    filename = fullfile(files(i).folder, files(i).name);
+    filename = accepted_files{i};
     
     try
         data = load(filename);
