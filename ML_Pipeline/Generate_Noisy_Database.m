@@ -161,5 +161,11 @@ Condition(ML_Table.Emax >= 0.25 & ML_Table.Emax < 0.6) = "Recovery";
 Condition(ML_Table.Emax >= 0.6) = "Normal";
 ML_Table.Condition = categorical(Condition);
 
+% Save to file
+writetable(ML_Table, output_csv);
+output_mat = strrep(output_csv, '.csv', '.mat');
+save(output_mat, 'ML_Table');
+
 fprintf('Done in %.1f seconds.\n', toc(t_start));
-fprintf('Noisy Database (Option B) saved to: %s\n', output_csv);
+fprintf('Noisy Database CSV saved to: %s\n', output_csv);
+fprintf('Noisy Database MAT saved to: %s\n', output_mat);
