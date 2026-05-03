@@ -16,7 +16,7 @@ addpath('..');
 addpath(genpath('../modules'));
 
 % --- SHARED DRIVE PATH (Same as Build_ML_Database) ---
-SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\'; 
+SHARED_DRIVE_PATH = 'G:\My Drive\Thesis Data\Step_simulations\Output Files'; 
 
 if isempty(SHARED_DRIVE_PATH)
     db_folder = fullfile('Data', 'ML_Database');
@@ -24,8 +24,8 @@ else
     db_folder = SHARED_DRIVE_PATH;
 end
 
-output_csv    = fullfile(db_folder, 'ML_Master_Database_Noisy10.csv');
-accepted_mat  = fullfile(db_folder, 'AcceptedFiles.mat');
+output_csv    = fullfile(db_folder, 'Step3_Database_Noisy10.csv');
+accepted_mat  = fullfile(db_folder, 'Step3_AcceptedFiles.mat');
 
 % Load QC-approved file list from Compile_Master_Database.m
 if ~isfile(accepted_mat)
