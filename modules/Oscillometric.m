@@ -134,29 +134,36 @@ Va0 = 0.3; V0 = 300; Patm = 760;
 % (40 to 160 mmHg) pressure for estimation
 SP = [40:160]; DP = [40:160];
 L = length(Pc);
-for m=1:length(SP),
+% Same model equations as the original per-sample loop, evaluated on whole
+% vectors. Terms that don't depend on the inner loops are computed once.
+X    = Va0*(Pc+Patm)/V0;
+PPn  = PP/max(PP);
+EA_D = zeros(L, length(DP)); EB_D = zeros(L, length(DP));
+for n=1:length(DP)
+    EA_D(:,n) = exp(a*(DP(n)-Pc));
+    EB_D(:,n) = exp(-b*(DP(n)-Pc));
+end
+SS = 1000*ones(length(SP), length(DP)); % Unrealistic (DBP >= SBP) keep high error
+PP_hat = zeros(L,1);
+for m=1:length(SP)
     SBP = SP(m);
-    for n=1:length(DP),
+    EA_S = exp(a*(SBP-Pc));
+    EB_S = exp(-b*(SBP-Pc));
+    hi = Pc >= SBP;
+    for n=1:length(DP)
         DBP = DP(n);
-        if DBP < SBP, % In reality, SBP > DBP
-            for k=1:L,
-                X = Va0*(Pc(k)+Patm)/V0;
-                if Pc(k) >= SBP,
-                    PP_hat(k,1)=X*(exp(a*(SBP-Pc(k)))-exp(a*(DBP-Pc(k))));
-                elseif Pc(k)<SBP && Pc(k)>=DBP,
-                    PP_hat(k,1)=X*(1+a/b*(1-exp(-b*(SBP-Pc(k))))-exp(a*(DBP-Pc(k))));
-                else
-                    PP_hat(k,1)=X*a/b*(exp(-b*(DBP-Pc(k)))-exp(-b*(SBP-Pc(k))));
-                end;
-            end;
+        if DBP < SBP % In reality, SBP > DBP
+            mid = ~hi & Pc >= DBP;
+            lo  = ~hi & ~mid;
+            PP_hat(hi)  = X(hi).*(EA_S(hi)-EA_D(hi,n));
+            PP_hat(mid) = X(mid).*(1+a/b*(1-EB_S(mid))-EA_D(mid,n));
+            PP_hat(lo)  = X(lo)*a/b.*(EB_D(lo,n)-EB_S(lo));
             PP_hat_compressed=PP_hat(1:length(PP));
-            ERR = PP/max(PP) - PP_hat_compressed/max(PP_hat_compressed);
+            ERR = PPn - PP_hat_compressed/max(PP_hat_compressed);
             SS(m,n) = ERR' * ERR;
-        else % Unrealistic conditions, assign high errors
-            SS(m,n) = 1000;
-        end;
-    end;
-end;
+        end
+    end
+end
 
 if isempty(SS)
     SBP = NaN; DBP = NaN; MAP = NaN;
