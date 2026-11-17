@@ -173,5 +173,5 @@ end
 [Y, I]=min(min(SS)); [X, J]=min(SS(:,I));
 SBP = min(SP)+J-1;
 DBP = min(DP)+I-1;
-MAP = 2/3*SBP + DBP/3;
+MAP = DBP + (SBP - DBP)/3; % Standard one-third rule (Gauer); was 2/3*SBP + DBP/3
 end

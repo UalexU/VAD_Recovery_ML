@@ -79,5 +79,5 @@ for m=1:length(SP)
     end
 end
 [~, I]=min(min(SS)); [~, J]=min(SS(:,I));
-SBP = min(SP)+J-1; DBP = min(DP)+I-1; MAP = 2/3*SBP + DBP/3;
+SBP = min(SP)+J-1; DBP = min(DP)+I-1; MAP = DBP + (SBP - DBP)/3;
 end
